@@ -3,7 +3,6 @@ import javafx.application.Application;
 import javafx.geometry.Point2D;
 import javafx.scene.Group;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -94,9 +93,14 @@ class Game extends Pane{
     game.start();
   }
   void update(){
-    gamePond.update();
-    gameCloud.update();
-    gameHelicopter.update();
+    if(gameCloud.getCloudFullness() <= 30){
+      gameCloud.update();
+      gameHelicopter.update();
+    }else{
+      gameCloud.update();
+      gameHelicopter.update();
+      gamePond.update();
+    }
   }
   boolean intersect(GameObject object1, GameObject object2){
     return object1.getBoundsInParent().intersects(object2.getBoundsInParent());
@@ -131,42 +135,46 @@ abstract class GameObject extends Group{
   }
 }
 class Pond extends GameObject {
-  private static final int POND_WIDTH = 20;
+  private static final Random RAND = new Random();
+
   private static final int INITIAL_POND_MAX = 30;
   private static final int INITIAL_POND_MIN = 10;
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
   private static final int OFFSET = GAME_HEIGHT / 4;
-  private static final int RANDOM_MAX_W = GAME_WIDTH - POND_WIDTH;
-  private static final int RANDOM_MAX_H = GAME_HEIGHT - POND_WIDTH;
-  private static final int RANDOM_MIN_H = OFFSET + POND_WIDTH;
+  private static final int POND_RADIUS = RAND.nextInt(
+      INITIAL_POND_MAX - INITIAL_POND_MIN) + INITIAL_POND_MIN;
+  private static final int RANDOM_MAX_W = GAME_WIDTH - POND_RADIUS;
+  private static final int RANDOM_MAX_H = GAME_HEIGHT - POND_RADIUS;
+  private static final int RANDOM_MIN_H = OFFSET + POND_RADIUS;
   private Circle c = new Circle();
-  private static final Random RAND = new Random();
+  private double pondRadius = POND_RADIUS;
 
-  private double pondFullness =
-      RAND.nextInt(INITIAL_POND_MAX - INITIAL_POND_MIN) + INITIAL_POND_MIN;
   private Text pondText = new Text();
   private static final Point2D INITIAL_POND_POS = new Point2D(RAND.nextInt
-      (RANDOM_MAX_W - POND_WIDTH) + POND_WIDTH, RAND.nextInt
+      (RANDOM_MAX_W - POND_RADIUS) + POND_RADIUS, RAND.nextInt
       (RANDOM_MAX_H - RANDOM_MIN_H) + RANDOM_MIN_H);
   public Pond(){
     pondText.setScaleY(-1);
     pondText.setTranslateX(INITIAL_POND_POS.getX());
     pondText.setTranslateY(INITIAL_POND_POS.getY());
-    pondText.setText(String.format("%4d", (int)pondFullness));
+    pondText.setText(String.format("%4d", (int) pondRadius));
     pondText.setFill(Color.WHITE);
 
     c.setFill(Color.BLUE);
-    c.setRadius(POND_WIDTH);
+    c.setRadius(POND_RADIUS);
     c.setCenterX(INITIAL_POND_POS.getX());
     c.setCenterY(INITIAL_POND_POS.getY());
     this.getChildren().addAll(c, pondText);
   }
   void update(){
+    pondText.setText(String.format("%4d", (int)pondRadius));
     grow();
   }
   void grow(){
-
+    double area = (Math.pow(c.getRadius(), 2) * Math.PI) + 3;
+    pondRadius = Math.sqrt(area/Math.PI);
+    c.setRadius(pondRadius);
   }
 
 }
@@ -181,7 +189,6 @@ class Cloud extends GameObject {
   private static final int STARTING_COLOR = 255;
   private int cloudColor = STARTING_COLOR;
   private int cloudFullness = 0;
-
   private Text cloudText = new Text();
   private Circle c = new Circle();
   private static final Random RAND = new Random();
@@ -200,8 +207,6 @@ class Cloud extends GameObject {
     c.setCenterX(INITIAL_CLOUD_POS.getX());
     c.setCenterY(INITIAL_CLOUD_POS.getY());
     this.getChildren().addAll(c, cloudText);
-
-
   }
   void getNewPosition(){
     Point2D ballPosition = new Point2D(RAND.nextInt
@@ -215,14 +220,17 @@ class Cloud extends GameObject {
     cloudText.setText(String.format("%4d", cloudFullness));
   }
   void colorChange(){
-    cloudFullness += 1;
-    if(cloudFullness <= 100){
+    if(cloudFullness < 100){
       cloudColor = STARTING_COLOR - cloudFullness;
+      cloudFullness += 1;
     }
     c.setFill(Color.rgb(cloudColor,cloudColor, cloudColor));
   }
   void decay(){
 
+  }
+  double getCloudFullness(){
+    return cloudFullness;
   }
 }
 class Helipad extends GameObject {
