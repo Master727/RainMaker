@@ -32,26 +32,18 @@ public class GameApp extends Application {
     stage.setTitle("Rain Maker Game");
     stage.setScene(scene);
     stage.show();
-
-
   }
-
   private void setOnKeyPressed(KeyEvent e){
     switch (e.getCode()){
       case  LEFT: newGame.headLeft();
-            System.out.println(e.getCode());
             break;
       case  RIGHT: newGame.headRight();
-            System.out.println(e.getCode());
             break;
       case  UP: newGame.increaseSpeed();
-            System.out.println(e.getCode());
             break;
       case  DOWN: newGame.decreaseSpeed();
-            System.out.println(e.getCode());
             break;
       case  I:  newGame.turnOnIgnition();
-            System.out.println(e.getCode());
             break;
       case  SPACE: newGame.fireEvent(); break;
     }
@@ -63,12 +55,13 @@ public class GameApp extends Application {
     return GAME_HEIGHT;
   }
 }
-
 interface Updatable{
   void update();
 }
 
-class Game extends Pane{
+class Game extends Pane implements Updatable{
+  private double elapsedTime = 0;
+  private static boolean ignition = false;
   private static final int INITIAL_FUEL = 25000;
   private Pond gamePond = new Pond();
   private Cloud gameCloud = new Cloud();
@@ -85,58 +78,87 @@ class Game extends Pane{
   }
   void init(){
     AnimationTimer game = new AnimationTimer() {
+      private double old = -1;
+      private double pastTime;
       @Override
       public void handle(long now) {
+        if (old < 0) old = now;
+        double delta = (now - old) / 1e9;
+        old = now;
+        elapsedTime += delta;
+        if(elapsedTime - pastTime > 0.5){
+          pastTime = elapsedTime;
+        }
         update();
       }
     };
     game.start();
   }
-  void update(){
-    if(gameCloud.getCloudFullness() <= 30){
-      gameCloud.update();
-      gameHelicopter.update();
-    }else{
+  public void update(){
+    if(gameCloud.isFullnessOverX(30)){
       gameCloud.update();
       gameHelicopter.update();
       gamePond.update();
+    }else{
+      gameCloud.update();
+      gameHelicopter.update();
     }
   }
   boolean intersect(GameObject object1, GameObject object2){
     return object1.getBoundsInParent().intersects(object2.getBoundsInParent());
-
   }
   void headLeft(){
-    gameHelicopter.headLeft();
+    if(ignition){
+      gameHelicopter.headLeft();
+    }
   }
   void headRight(){
-    gameHelicopter.headRight();
+    if(ignition){
+      gameHelicopter.headRight();
+    }
   }
   void increaseSpeed(){
-    gameHelicopter.increaseSpeed();
+    if(ignition){
+      if(!gameHelicopter.isCopterMaxSpeed()) {
+        gameHelicopter.increaseSpeed();
+      }
+    }
   }
   void decreaseSpeed(){
-    gameHelicopter.decreaseSpeed();
+    if(ignition){
+      if(!gameHelicopter.isCopterMinSpeed()) {
+        gameHelicopter.decreaseSpeed();
+      }
+    }
   }
   void turnOnIgnition(){
-    gameHelicopter.turnOnIgnition();
+    if(intersect(gameHelicopter, gameHelipad)){
+      ignition = true;
+    }
+  }
+  void turnOffIgnition(){
+    if(intersect(gameHelicopter, gameHelipad)){
+      ignition = false;
+    }
   }
   void fireEvent(){
     if(intersect(gameHelicopter, gameCloud)){
-      gameCloud.colorChange();
+      if(!gameCloud.isFullnessOverX(100)){
+        gameCloud.colorChange();
+      }
     }
   }
-
+  static boolean getIgnition(){
+    return ignition;
+  }
 }
-abstract class GameObject extends Group{
-
+abstract class GameObject extends Group {
   public GameObject(){
 
   }
 }
-class Pond extends GameObject {
+class Pond extends GameObject implements Updatable{
   private static final Random RAND = new Random();
-
   private static final int INITIAL_POND_MAX = 30;
   private static final int INITIAL_POND_MIN = 10;
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
@@ -167,7 +189,7 @@ class Pond extends GameObject {
     c.setCenterY(INITIAL_POND_POS.getY());
     this.getChildren().addAll(c, pondText);
   }
-  void update(){
+  public void update(){
     pondText.setText(String.format("%4d", (int)pondRadius));
     grow();
   }
@@ -178,7 +200,7 @@ class Pond extends GameObject {
   }
 
 }
-class Cloud extends GameObject {
+class Cloud extends GameObject implements Updatable{
   private static final int CLOUD_WIDTH = 50;
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
@@ -189,6 +211,7 @@ class Cloud extends GameObject {
   private static final int STARTING_COLOR = 255;
   private int cloudColor = STARTING_COLOR;
   private int cloudFullness = 0;
+  private double currectTime = 0;
   private Text cloudText = new Text();
   private Circle c = new Circle();
   private static final Random RAND = new Random();
@@ -216,7 +239,7 @@ class Cloud extends GameObject {
     c.setCenterX(ballPosition.getX());
     c.setCenterY(ballPosition.getY());
   }
-  void update(){
+  public void update(){
     cloudText.setText(String.format("%4d", cloudFullness));
   }
   void colorChange(){
@@ -229,8 +252,11 @@ class Cloud extends GameObject {
   void decay(){
 
   }
-  double getCloudFullness(){
-    return cloudFullness;
+  boolean isFullnessOverX(double x){
+    if(cloudFullness >= x){
+      return true;
+    }
+    else return false;
   }
 }
 class Helipad extends GameObject {
@@ -265,9 +291,8 @@ class Helipad extends GameObject {
     c.setCenterY(HALF_HELIPAD_POS);
     this.getChildren().addAll(r, c);
   }
-
 }
-class Helicopter extends GameObject {
+class Helicopter extends GameObject implements Updatable{
   private static final int COPTER_RAD = 10;
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
@@ -276,12 +301,13 @@ class Helicopter extends GameObject {
   private static final int HALF_HELIPAD_POS = OFFSET / 2;
   private static final double INITIAL_HEADING = 90;
   private static final double INITIAL_SPEED = 0;
+  private static final double MAX_COPTER_SPEED = 10;
+  private static final double MIN_COPTER_SPEED = -2;
   private double heading = INITIAL_HEADING;
-  private boolean ignition = false;
   private double speed = INITIAL_SPEED;
   private int fuel;
   private double speedIncrease = .1;
-
+  private boolean ignition = false;
   private double headingChange = 5;
   private Circle c = new Circle();
   private Line l = new Line(0,0,0,30);
@@ -305,8 +331,8 @@ class Helicopter extends GameObject {
     l.setTranslateY(HALF_HELIPAD_POS);
     this.getChildren().addAll(c, l, copterText);
   }
-  void update(){
-    if(ignition){
+  public void update(){
+    if(Game.getIgnition()){
       move();
       copterText.setText(String.format("%9d", fuel));
       updateFuel();
@@ -315,7 +341,20 @@ class Helicopter extends GameObject {
   void move(){
     this.setTranslateX(getTranslateX() + (speed * Math.cos(toRadians(heading))));
     this.setTranslateY(getTranslateY() + (speed * Math.sin(toRadians(heading))));
+    System.out.println(speed);
     this.setRotate(heading - 90);
+  }
+  boolean isCopterMaxSpeed(){
+    if(speed >= MAX_COPTER_SPEED){
+      return true;
+    }
+    else return false;
+  }
+  boolean isCopterMinSpeed(){
+    if(speed <= MIN_COPTER_SPEED) {
+      return true;
+    }
+    else return false;
   }
   void updateFuel(){
     fuel -= (abs(1 + speed));
@@ -332,16 +371,9 @@ class Helicopter extends GameObject {
   void decreaseSpeed(){
     speed -= speedIncrease;
   }
-
-  void turnOnIgnition() {
-    ignition = true;
-  }
-  int getFuel(){
-    return fuel;
-  }
-
 }
 class GameText extends GameObject{
   public GameText(){
   }
 }
+
