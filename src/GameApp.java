@@ -1,14 +1,18 @@
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
 import javafx.geometry.Point2D;
+import javafx.geometry.Pos;
 import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.layout.Pane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
+import javafx.scene.text.Font;
 import javafx.scene.text.Text;
+import javafx.scene.text.TextAlignment;
 import javafx.stage.Stage;
 import javafx.scene.input.KeyEvent;
 import java.util.Random;
@@ -293,6 +297,8 @@ class Helipad extends GameObject {
   }
 }
 class Helicopter extends GameObject implements Updatable{
+  private static final double CENTER_PROPORTION_X = 40/33;
+  private static final double CENTER_PROPORTION_Y = 20/17;
   private static final int COPTER_RAD = 10;
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
@@ -311,13 +317,16 @@ class Helicopter extends GameObject implements Updatable{
   private double headingChange = 5;
   private Circle c = new Circle();
   private Line l = new Line(0,0,0,30);
-  private Text copterText = new Text();
+  private GameText copterText = new GameText();
   public Helicopter(int initialFuel){
     fuel = initialFuel;
+    double textPosition = HALF_GAME_WIDTH / CENTER_PROPORTION_X;
+    System.out.println(HALF_GAME_WIDTH);
+    System.out.println(textPosition);
+    copterText.setTranslateX(HALF_GAME_WIDTH / CENTER_PROPORTION_X);
 
-    copterText.setScaleY(-1);
-    copterText.setTranslateX(HALF_GAME_WIDTH);
-    copterText.setTranslateY(HALF_HELIPAD_POS);
+    copterText.setTranslateY(HALF_HELIPAD_POS / CENTER_PROPORTION_Y);
+    System.out.println(HALF_HELIPAD_POS / CENTER_PROPORTION_Y);
     copterText.setText(String.format("%9d", fuel));
     copterText.setFill(Color.YELLOW);
 
@@ -373,7 +382,24 @@ class Helicopter extends GameObject implements Updatable{
   }
 }
 class GameText extends GameObject{
+  private Text text;
+  public GameText(String textString){
+    text = new Text(textString);
+    text.setScaleY(-1);
+    text.setFont(Font.font(15));
+    this.getChildren().add(text);
+  }
   public GameText(){
+    this("");
+  }
+  void setText(String textString){
+    text.setText(textString);
+  }
+  void setFill(Color color){
+    text.setFill(color);
+  }
+  void setAlignment(Pos position){
+    StackPane.setAlignment(text, position);
   }
 }
 
