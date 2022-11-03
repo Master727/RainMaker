@@ -3,6 +3,8 @@ import javafx.application.Application;
 import javafx.geometry.Point2D;
 import javafx.scene.Group;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.ButtonType;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -13,7 +15,7 @@ import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.scene.input.KeyEvent;
 import java.util.Random;
-
+import javafx.scene.control.Alert.AlertType;
 import static java.lang.Math.abs;
 import static java.lang.Math.toRadians;
 
@@ -22,7 +24,6 @@ public class GameApp extends Application {
   private static final int GAME_WIDTH = 400;
   private static final Point2D size = new Point2D(GAME_WIDTH, GAME_HEIGHT);
   private Game newGame = new Game();
-
 
   public void start(Stage stage) {
     Scene scene = new Scene(newGame, size.getX(), size.getY());
@@ -64,12 +65,14 @@ interface Updatable{
 class Game extends Pane implements Updatable{
   private double elapsedTime = 0;
   private static boolean ignition = false;
-  private static boolean restartGame = false;
-  private static final int INITIAL_FUEL = 25000;
+  private static boolean noGameRestart = true;
+  private static final int INITIAL_FUEL = 100;
   private Pond gamePond;
   private Cloud gameCloud;
   private Helipad gameHelipad;
   private Helicopter gameHelicopter;
+  private AnimationTimer game;
+  private Alert alert;
 
   public Game(){
     gamePond = new Pond();
@@ -85,23 +88,25 @@ class Game extends Pane implements Updatable{
     init();
   }
   void init(){
-    AnimationTimer game = new AnimationTimer() {
+    game = new AnimationTimer() {
       private double old = -1;
       private double pastTime;
       @Override
       public void handle(long now) {
-
-//        if(){
-//          //stop animation loop before displaying alert
-//        }
-        if (old < 0) old = now;
-        double delta = (now - old) / 1e9;
-        old = now;
-        elapsedTime += delta;
-        if(elapsedTime - pastTime > 0.5){
-          pastTime = elapsedTime;
-        }
+        if(noGameRestart){
+          if(gameHelicopter.getFuel() <= 0 && noGameRestart){
+            noGameRestart = false;
+            restartGame();
+          }
+          if (old < 0) old = now;
+          double delta = (now - old) / 1e9;
+          old = now;
+          elapsedTime += delta;
+          if(elapsedTime - pastTime > 0.5){
+            pastTime = elapsedTime;
+          }
           update();
+        }
       }
     };
     game.start();
@@ -159,12 +164,16 @@ class Game extends Pane implements Updatable{
     return ignition;
   }
   void restartGame(){
-
+    game.stop();
+    alert = new Alert(AlertType.CONFIRMATION);
+    alert.showAndWait();
+    if(alert.getResult() == ButtonType.OK) {
+      this.getChildren().clear();
+    }
   }
 }
 abstract class GameObject extends Group {
   public GameObject(){
-
   }
 }
 class Pond extends GameObject implements Updatable{
@@ -213,6 +222,9 @@ class Pond extends GameObject implements Updatable{
     double area = (Math.pow(c.getRadius(), 2) * Math.PI) + 3;
     pondRadius = Math.sqrt(area/Math.PI);
     c.setRadius(pondRadius);
+  }
+  double getPondRadius(){
+    return pondRadius;
   }
 
 }
@@ -386,6 +398,9 @@ class Helicopter extends GameObject implements Updatable{
   }
   void decreaseSpeed(){
     speed -= speedIncrease;
+  }
+  int getFuel(){
+    return fuel;
   }
 }
 class GameText extends GameObject{
