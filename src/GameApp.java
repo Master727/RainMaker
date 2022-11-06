@@ -1,5 +1,6 @@
 import javafx.animation.AnimationTimer;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.geometry.Point2D;
 import javafx.scene.Group;
 import javafx.scene.Scene;
@@ -15,7 +16,7 @@ import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.scene.input.KeyEvent;
 import java.util.Random;
-import javafx.scene.control.Alert.AlertType;
+
 import static java.lang.Math.abs;
 import static java.lang.Math.toRadians;
 
@@ -45,7 +46,7 @@ public class GameApp extends Application {
             break;
       case  DOWN: newGame.decreaseSpeed();
             break;
-      case  I:  newGame.turnOnIgnition();
+      case  I:  newGame.flipIgnition();
             break;
       case  SPACE: newGame.fireEvent();
             break;
@@ -64,27 +65,23 @@ interface Updatable{
 
 class Game extends Pane implements Updatable{
   private double elapsedTime = 0;
-  private static boolean ignition = false;
-  private static boolean noGameRestart = true;
-  private static final int INITIAL_FUEL = 100;
+  private static final boolean INITIAL_IGNITION = false;
+  private static boolean ignition = INITIAL_IGNITION;
+  private static final int INITIAL_FUEL = 10000;
   private Pond gamePond;
   private Cloud gameCloud;
   private Helipad gameHelipad;
   private Helicopter gameHelicopter;
   private AnimationTimer game;
-  private Alert alert;
+  private static final StringBuilder STRING_BUILDER = new StringBuilder();
+  private static Alert alert;
+
 
   public Game(){
-    gamePond = new Pond();
-    gameCloud = new Cloud();
-    gameHelipad = new Helipad();
-    gameHelicopter = new Helicopter(INITIAL_FUEL);
-
+    this.setStyle("-fx-background-color: black;");
+    instantiateGameObjects();
     this.setScaleY(-1);
-    while(intersect(gameCloud, gamePond)){
-      gameCloud.getNewPosition();
-    }
-    this.getChildren().addAll(gamePond,gameCloud,gameHelipad,gameHelicopter);
+    cloudIntersectPond();
     init();
   }
   void init(){
@@ -93,20 +90,15 @@ class Game extends Pane implements Updatable{
       private double pastTime;
       @Override
       public void handle(long now) {
-        if(noGameRestart){
-          if(gameHelicopter.getFuel() <= 0 && noGameRestart){
-            noGameRestart = false;
-            restartGame();
-          }
-          if (old < 0) old = now;
-          double delta = (now - old) / 1e9;
-          old = now;
-          elapsedTime += delta;
-          if(elapsedTime - pastTime > 0.5){
-            pastTime = elapsedTime;
-          }
-          update();
+        if (old < 0) old = now;
+        double delta = (now - old) / 1e9;
+        old = now;
+        elapsedTime += delta;
+        if(elapsedTime - pastTime > 0.5){
+          pastTime = elapsedTime;
         }
+        update();
+        restartGame();
       }
     };
     game.start();
@@ -120,6 +112,13 @@ class Game extends Pane implements Updatable{
       gameCloud.update();
       gameHelicopter.update();
     }
+  }
+  void instantiateGameObjects(){
+    gamePond = new Pond();
+    gameCloud = new Cloud();
+    gameHelipad = new Helipad();
+    gameHelicopter = new Helicopter(INITIAL_FUEL);
+    this.getChildren().addAll(gamePond,gameCloud,gameHelipad,gameHelicopter);
   }
   boolean intersect(GameObject object1, GameObject object2){
     return object1.getBoundsInParent().intersects(object2.getBoundsInParent());
@@ -148,7 +147,7 @@ class Game extends Pane implements Updatable{
       }
     }
   }
-  void turnOnIgnition(){
+  void flipIgnition(){
     if(intersect(gameHelicopter, gameHelipad)){
       ignition = !ignition;
     }
@@ -164,12 +163,42 @@ class Game extends Pane implements Updatable{
     return ignition;
   }
   void restartGame(){
-    game.stop();
-    alert = new Alert(AlertType.CONFIRMATION);
-    alert.showAndWait();
-    if(alert.getResult() == ButtonType.OK) {
-      this.getChildren().clear();
+    if(gamePond.pondRadiusOverX(100) || gameHelicopter.getFuel() <= 0 ){
+      game.stop();
+      System.out.println("First if statement");
+      if(gamePond.pondRadiusOverX(100) && intersect(gameHelicopter,
+          gameHelipad) && !ignition){
+        addText("Congratulations! You won with a score of " +
+            gameHelicopter.getFuel() + " Would you like to play " +
+            "again?");
+      }else{
+        addText("Your helicopter has run out of fuel. " +
+            "Would you like to try again?");
+      }
+      alert = new Alert(Alert.AlertType.CONFIRMATION, STRING_BUILDER.toString(),
+          ButtonType.YES, ButtonType.NO);
+      alert.setOnHidden(evt -> {
+        if (alert.getResult() == ButtonType.YES) {
+          this.getChildren().clear();
+          instantiateGameObjects();
+          ignition = INITIAL_IGNITION;
+          cloudIntersectPond();
+          this.init();
+        }
+        else
+          Platform.exit();
+      });
+      alert.show();
     }
+  }
+  void cloudIntersectPond(){
+    while(intersect(gameCloud, gamePond)){
+      gameCloud.getNewPosition();
+    }
+  }
+  void addText(String s){
+    STRING_BUILDER.setLength(0);
+    STRING_BUILDER.append(s);
   }
 }
 abstract class GameObject extends Group {
@@ -183,24 +212,22 @@ class Pond extends GameObject implements Updatable{
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
   private static final int OFFSET = GAME_HEIGHT / 4;
-  private static final int POND_RADIUS = RAND.nextInt(
-      INITIAL_POND_MAX - INITIAL_POND_MIN) + INITIAL_POND_MIN;
-  private static final int RANDOM_MAX_W = GAME_WIDTH - POND_RADIUS;
-  private static final int RANDOM_MAX_H = GAME_HEIGHT - POND_RADIUS;
-  private static final int RANDOM_MIN_H = OFFSET + POND_RADIUS;
   private Circle c;
   private double pondRadius;
-
   private final Text pondText;
-  private Point2D initialPondPosition;
   public Pond(){
     c = new Circle();
-    pondRadius = POND_RADIUS;
+    pondRadius = RAND.nextInt(
+        INITIAL_POND_MAX - INITIAL_POND_MIN) + INITIAL_POND_MIN;
     pondText = new Text();
-    initialPondPosition = new Point2D(RAND.nextInt
-        (RANDOM_MAX_W - POND_RADIUS) + POND_RADIUS, RAND.nextInt
-        (RANDOM_MAX_H - RANDOM_MIN_H) + RANDOM_MIN_H);
+    int randomMaxH = GAME_HEIGHT - (int) pondRadius;
+    int randomMaxW = GAME_WIDTH - (int) pondRadius;
+    int randomMinH = OFFSET + (int) pondRadius;
 
+
+    Point2D initialPondPosition = new Point2D(RAND.nextInt
+        (randomMaxW - (int) pondRadius) + pondRadius, RAND.nextInt
+        (randomMaxH - randomMinH) + randomMinH);
 
     pondText.setScaleY(-1);
     pondText.setTranslateX(initialPondPosition.getX());
@@ -209,7 +236,7 @@ class Pond extends GameObject implements Updatable{
     pondText.setFill(Color.WHITE);
 
     c.setFill(Color.BLUE);
-    c.setRadius(POND_RADIUS);
+    c.setRadius(pondRadius);
     c.setCenterX(initialPondPosition.getX());
     c.setCenterY(initialPondPosition.getY());
     this.getChildren().addAll(c, pondText);
@@ -219,12 +246,14 @@ class Pond extends GameObject implements Updatable{
     grow();
   }
   void grow(){
-    double area = (Math.pow(c.getRadius(), 2) * Math.PI) + 3;
-    pondRadius = Math.sqrt(area/Math.PI);
-    c.setRadius(pondRadius);
+    if(!pondRadiusOverX(100)){
+      double area = (Math.pow(c.getRadius(), 2) * Math.PI) + 3;
+      pondRadius = Math.sqrt(area/Math.PI);
+      c.setRadius(pondRadius);
+    }
   }
-  double getPondRadius(){
-    return pondRadius;
+  boolean pondRadiusOverX(double x){
+    return pondRadius >= x;
   }
 
 }
@@ -238,7 +267,7 @@ class Cloud extends GameObject implements Updatable{
   private static final int RANDOM_MIN_H = OFFSET + CLOUD_WIDTH;
   private static final int STARTING_COLOR = 255;
   private int cloudColor = STARTING_COLOR;
-  private int cloudFullness = 0;
+  private static int cloudFullness = 0;
   private Text cloudText;
   private Circle c;
   private static final Random RAND = new Random();
@@ -269,6 +298,12 @@ class Cloud extends GameObject implements Updatable{
     c.setRadius(CLOUD_WIDTH);
     c.setCenterX(initialCloudPosition.getX());
     c.setCenterY(initialCloudPosition.getY());
+
+    cloudText.setScaleY(-1);
+    cloudText.setTranslateX(initialCloudPosition.getX());
+    cloudText.setTranslateY(initialCloudPosition.getY());
+    cloudText.setText(String.format("%4d", cloudFullness));
+    cloudText.setFill(Color.BLACK);
   }
   public void update(){
     cloudText.setText(String.format("%4d", cloudFullness));
@@ -329,13 +364,14 @@ class Helicopter extends GameObject implements Updatable{
   private static final int OFFSET = GAME_HEIGHT / 4;
   private static final int HALF_GAME_WIDTH = GAME_WIDTH / 2;
   private static final int HALF_HELIPAD_POS = OFFSET / 2;
-  private static final double INITIAL_HEADING = 90;
+  private static final double INITIAL_HEADING = 0;
   private static final double INITIAL_SPEED = 0;
   private static final double MAX_COPTER_SPEED = 10;
   private static final double MIN_COPTER_SPEED = -2;
   private double heading;
   private double speed;
   private int fuel;
+  private double theta;
   private final double speedIncrease = .1;
   private final double headingChange = 5;
   private Circle c;
@@ -373,10 +409,11 @@ class Helicopter extends GameObject implements Updatable{
     }
   }
   void move(){
-    this.setTranslateX(getTranslateX() + (speed * Math.cos(toRadians(heading))));
-    this.setTranslateY(getTranslateY() + (speed * Math.sin(toRadians(heading))));
-    System.out.println(speed);
-    this.setRotate(heading - 90);
+    this.setTranslateX(getTranslateX() + (speed * Math.cos(toRadians(theta))));
+    this.setTranslateY(getTranslateY() + (speed * Math.sin(toRadians(theta))));
+    //System.out.println(speed);
+    theta = 90 - heading;
+    this.setRotate(360 - heading);
   }
   boolean isHelicopterMaxSpeed(){
     return speed >= MAX_COPTER_SPEED;
@@ -388,10 +425,10 @@ class Helicopter extends GameObject implements Updatable{
     fuel -= (abs(1 + speed));
   }
   void headLeft(){
-    heading += headingChange;
+    heading = (heading%360) - headingChange;
   }
   void headRight(){
-    heading -= headingChange;
+    heading = (heading%360) + headingChange;
   }
   void increaseSpeed(){
     speed += speedIncrease;
