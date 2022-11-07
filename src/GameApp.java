@@ -64,9 +64,11 @@ interface Updatable{
 }
 
 class Game extends Pane implements Updatable{
-  private double elapsedTime = 0;
+  private static double elapsedTime = 0;
+  private static double pastTime;
   private static final boolean INITIAL_IGNITION = false;
   private static boolean ignition = INITIAL_IGNITION;
+  private static boolean fireEventInActive = true;
   private static final int INITIAL_FUEL = 10000;
   private Pond gamePond;
   private Cloud gameCloud;
@@ -87,16 +89,12 @@ class Game extends Pane implements Updatable{
   void init(){
     game = new AnimationTimer() {
       private double old = -1;
-      private double pastTime;
       @Override
       public void handle(long now) {
         if (old < 0) old = now;
         double delta = (now - old) / 1e9;
         old = now;
         elapsedTime += delta;
-        if(elapsedTime - pastTime > 0.5){
-          pastTime = elapsedTime;
-        }
         update();
         restartGame();
       }
@@ -108,6 +106,11 @@ class Game extends Pane implements Updatable{
       gameCloud.update();
       gameHelicopter.update();
       gamePond.update();
+      if(elapsedTime - pastTime > 1.0 && fireEventInActive){
+        pastTime = elapsedTime;
+        gameCloud.decay();
+      }
+
     }else{
       gameCloud.update();
       gameHelicopter.update();
@@ -119,9 +122,6 @@ class Game extends Pane implements Updatable{
     gameHelipad = new Helipad();
     gameHelicopter = new Helicopter(INITIAL_FUEL);
     this.getChildren().addAll(gamePond,gameCloud,gameHelipad,gameHelicopter);
-  }
-  boolean intersect(GameObject object1, GameObject object2){
-    return object1.getBoundsInParent().intersects(object2.getBoundsInParent());
   }
   void headLeft(){
     if(ignition){
@@ -148,25 +148,24 @@ class Game extends Pane implements Updatable{
     }
   }
   void flipIgnition(){
-    if(intersect(gameHelicopter, gameHelipad)){
+    if(isIntersect(gameHelicopter, gameHelipad)){
       ignition = !ignition;
     }
   }
   void fireEvent(){
-    if(intersect(gameHelicopter, gameCloud)){
+    fireEventInActive = !fireEventInActive;
+    if(isIntersect(gameHelicopter, gameCloud)){
       if(!gameCloud.isFullnessOverX(100)){
         gameCloud.colorChange();
       }
     }
-  }
-  static boolean getIgnition(){
-    return ignition;
+    fireEventInActive = !fireEventInActive;
   }
   void restartGame(){
     if(gamePond.pondRadiusOverX(100) || gameHelicopter.getFuel() <= 0 ){
       game.stop();
       System.out.println("First if statement");
-      if(gamePond.pondRadiusOverX(100) && intersect(gameHelicopter,
+      if(gamePond.pondRadiusOverX(100) && isIntersect(gameHelicopter,
           gameHelipad) && !ignition){
         addText("Congratulations! You won with a score of " +
             gameHelicopter.getFuel() + " Would you like to play " +
@@ -192,13 +191,19 @@ class Game extends Pane implements Updatable{
     }
   }
   void cloudIntersectPond(){
-    while(intersect(gameCloud, gamePond)){
+    while(isIntersect(gameCloud, gamePond)){
       gameCloud.getNewPosition();
     }
   }
   void addText(String s){
     STRING_BUILDER.setLength(0);
     STRING_BUILDER.append(s);
+  }
+  boolean isIntersect(GameObject object1, GameObject object2){
+    return object1.getBoundsInParent().intersects(object2.getBoundsInParent());
+  }
+  static boolean getIgnition(){
+    return ignition;
   }
 }
 abstract class GameObject extends Group {
@@ -309,14 +314,14 @@ class Cloud extends GameObject implements Updatable{
     cloudText.setText(String.format("%4d", cloudFullness));
   }
   void colorChange(){
-    if(cloudFullness < 100){
-      cloudColor = STARTING_COLOR - cloudFullness;
-      cloudFullness += 1;
-    }
+    cloudColor = STARTING_COLOR - cloudFullness;
+    cloudFullness += 1;
     c.setFill(Color.rgb(cloudColor,cloudColor, cloudColor));
   }
   void decay(){
-
+    cloudColor = STARTING_COLOR - cloudFullness;
+    cloudFullness -= 1;
+    c.setFill(Color.rgb(cloudColor,cloudColor, cloudColor));
   }
   boolean isFullnessOverX(double x){
     return cloudFullness >= x;
@@ -327,7 +332,7 @@ class Helipad extends GameObject {
   private static final int GAME_WIDTH = GameApp.getGameWidth();
   private static final int OFFSET = GAME_HEIGHT / 4;
   private static final int HELIPAD_REC_W_H = 75;
-  private static int HELIPAD_CIR_RAD = HELIPAD_REC_W_H - 20;
+  private static final int HELIPAD_CIR_RAD = HELIPAD_REC_W_H - 20;
   private static final int HALF_GAME_WIDTH = GAME_WIDTH / 2;
   private static final int HALF_HELIPAD_POS = OFFSET / 2;
   private static final int HALF_HELIPAD_REC_W_H =
@@ -358,7 +363,7 @@ class Helipad extends GameObject {
   }
 }
 class Helicopter extends GameObject implements Updatable{
-  private static final int COPTER_RAD = 10;
+  private static final int HELICOPTER_RAD = 10;
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
   private static final int OFFSET = GAME_HEIGHT / 4;
@@ -391,7 +396,7 @@ class Helicopter extends GameObject implements Updatable{
     helicopterText.setText(String.format("%9d", fuel));
     helicopterText.setFill(Color.YELLOW);
 
-    c.setRadius(COPTER_RAD);
+    c.setRadius(HELICOPTER_RAD);
     c.setFill(Color.YELLOW);
     c.setCenterX(HALF_GAME_WIDTH);
     c.setCenterY(HALF_HELIPAD_POS);
