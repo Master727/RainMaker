@@ -48,6 +48,8 @@ public class GameApp extends Application {
             break;
       case  I:  newGame.flipIgnition();
             break;
+      case  R: newGame.hardRestart();
+            break;
       case  SPACE: newGame.fireEvent();
             break;
     }
@@ -69,7 +71,7 @@ class Game extends Pane implements Updatable{
   private static final boolean INITIAL_IGNITION = false;
   private static boolean ignition = INITIAL_IGNITION;
   private static boolean fireEventInActive = true;
-  private static final int INITIAL_FUEL = 10000;
+  private static final int INITIAL_FUEL = 25000;
   private Pond gamePond;
   private Cloud gameCloud;
   private Helipad gameHelipad;
@@ -96,7 +98,7 @@ class Game extends Pane implements Updatable{
         old = now;
         elapsedTime += delta;
         update();
-        restartGame();
+        gameWinLoseRestart();
       }
     };
     game.start();
@@ -161,7 +163,7 @@ class Game extends Pane implements Updatable{
     }
     fireEventInActive = !fireEventInActive;
   }
-  void restartGame(){
+  void gameWinLoseRestart(){
     if(gamePond.pondRadiusOverX(100) || gameHelicopter.getFuel() <= 0 ){
       game.stop();
       System.out.println("First if statement");
@@ -189,6 +191,14 @@ class Game extends Pane implements Updatable{
       });
       alert.show();
     }
+  }
+  void hardRestart(){
+    game.stop();
+    this.getChildren().clear();
+    instantiateGameObjects();
+    ignition = INITIAL_IGNITION;
+    cloudIntersectPond();
+    this.init();
   }
   void cloudIntersectPond(){
     while(isIntersect(gameCloud, gamePond)){
@@ -389,7 +399,6 @@ class Helicopter extends GameObject implements Updatable{
     c = new Circle();
     l = new Line(0,0,0,30);
     helicopterText = new GameText();
-    //helicopterText.getLayoutBounds().getWidth();
 
     helicopterText.setTranslateX(HALF_GAME_WIDTH - 35);
     helicopterText.setTranslateY(HALF_HELIPAD_POS - 15);
@@ -408,15 +417,14 @@ class Helicopter extends GameObject implements Updatable{
   }
   public void update(){
     if(Game.getIgnition()){
-      move();
       helicopterText.setText(String.format("%9d", fuel));
       updateFuel();
+      move();
     }
   }
   void move(){
     this.setTranslateX(getTranslateX() + (speed * Math.cos(toRadians(theta))));
     this.setTranslateY(getTranslateY() + (speed * Math.sin(toRadians(theta))));
-    //System.out.println(speed);
     theta = 90 - heading;
     this.setRotate(360 - heading);
   }
