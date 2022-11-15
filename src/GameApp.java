@@ -6,6 +6,8 @@ import javafx.scene.Group;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
@@ -15,6 +17,10 @@ import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.scene.input.KeyEvent;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.util.Random;
 
 import static java.lang.Math.abs;
@@ -22,7 +28,7 @@ import static java.lang.Math.toRadians;
 
 public class GameApp extends Application {
   private static final int GAME_HEIGHT = 800;
-  private static final int GAME_WIDTH = 400;
+  private static final int GAME_WIDTH = 800;
   private static final Point2D size = new Point2D(GAME_WIDTH, GAME_HEIGHT);
   private Game newGame = new Game();
 
@@ -392,12 +398,14 @@ class Helicopter extends GameObject implements Updatable{
   private Circle c;
   private Line l;
   private GameText helicopterText;
+  private HelicopterBody helicopterBody;
   public Helicopter(int initialFuel){
     heading = INITIAL_HEADING;
     speed = INITIAL_SPEED;
     fuel = initialFuel;
-    c = new Circle();
-    l = new Line(0,0,0,30);
+//    c = new Circle();
+//    l = new Line(0,0,0,30);
+    helicopterBody = new HelicopterBody();
     helicopterText = new GameText();
 
     helicopterText.setTranslateX(HALF_GAME_WIDTH - 35);
@@ -405,15 +413,9 @@ class Helicopter extends GameObject implements Updatable{
     helicopterText.setText(String.format("%9d", fuel));
     helicopterText.setFill(Color.YELLOW);
 
-    c.setRadius(HELICOPTER_RAD);
-    c.setFill(Color.YELLOW);
-    c.setCenterX(HALF_GAME_WIDTH);
-    c.setCenterY(HALF_HELIPAD_POS);
-
-    l.setStroke(Color.WHITE);
-    l.setTranslateX(HALF_GAME_WIDTH);
-    l.setTranslateY(HALF_HELIPAD_POS);
-    this.getChildren().addAll(c, l, helicopterText);
+    helicopterBody.setHelicopterBodyPosition(HALF_GAME_WIDTH-15,
+        HALF_HELIPAD_POS-50);
+    this.getChildren().addAll(helicopterBody, helicopterText);
   }
   public void update(){
     if(Game.getIgnition()){
@@ -453,6 +455,31 @@ class Helicopter extends GameObject implements Updatable{
     return fuel;
   }
 }
+
+class HelicopterBody extends GameObject{
+  private File helicopterBodyFile;
+  private ImageView helicopterBody;
+  public HelicopterBody() {
+    helicopterBodyFile = new File("Images/Vector 1 2.png");
+    Image image = new Image(helicopterBodyFile.toURI().toString());
+    helicopterBody = new ImageView(image);
+    helicopterBody.setPreserveRatio(true);
+    helicopterBody.setScaleY(-1);
+    helicopterBody.setFitHeight(100);
+    this.getChildren().add(helicopterBody);
+  }
+  void setHelicopterBodyPosition(double x, double y){
+    helicopterBody.setTranslateX(x);
+    helicopterBody.setTranslateY(y);
+  }
+}
+
+class HelicopterBlade {
+  public HelicopterBlade(){
+
+  }
+}
+
 class GameText extends GameObject{
   private Text text;
   public GameText(String textString){
