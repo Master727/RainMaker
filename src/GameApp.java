@@ -11,7 +11,6 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.Pane;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
-import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
@@ -67,6 +66,9 @@ public class GameApp extends Application {
 interface Updatable{
   void update();
 }
+interface HelicopterState {
+  void toggleIgnition();
+}
 
 class Game extends Pane implements Updatable{
   private static double elapsedTime = 0;
@@ -113,7 +115,6 @@ class Game extends Pane implements Updatable{
         pastTime = elapsedTime;
         gameCloud.decay();
       }
-
     }else{
       gameCloud.update();
       gameHelicopter.update();
@@ -328,7 +329,7 @@ class Cloud extends GameObject implements Updatable{
   void colorChange(){
     cloudColor = STARTING_COLOR - cloudFullness;
     cloudFullness += 1;
-    c.setFill(Color.rgb(cloudColor,cloudColor, cloudColor));
+    c.setFill(Color.rgb(cloudColor, cloudColor, cloudColor));
   }
   void decay(){
     cloudColor = STARTING_COLOR - cloudFullness;
@@ -375,7 +376,6 @@ class Helipad extends GameObject {
   }
 }
 class Helicopter extends GameObject implements Updatable{
-  private static final int HELICOPTER_RAD = 10;
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
   private static final int OFFSET = GAME_HEIGHT / 4;
@@ -385,36 +385,47 @@ class Helicopter extends GameObject implements Updatable{
   private static final double INITIAL_SPEED = 0;
   private static final double MAX_COPTER_SPEED = 10;
   private static final double MIN_COPTER_SPEED = -2;
+  private static final double HELICOPTER_BODY_POSITION_X =
+      HALF_GAME_WIDTH-15;
+  private static final double HELICOPTER_BODY_POSITION_Y =
+      HALF_HELIPAD_POS - 50;
+  private static final double HELICOPTER_BLADE_POSITION_X =
+      HALF_GAME_WIDTH-1;
+  private static final double HELICOPTER_BLADE_POSITION_Y =
+      HALF_HELIPAD_POS - 50;
+  private static final double HELICOPTER_TEXT_POSITION_X =
+      HALF_GAME_WIDTH - 35;
+  private static final double HELICOPTER_TEXT_POSITION_Y =
+      HALF_HELIPAD_POS - 55;
   private double heading;
   private double speed;
   private int fuel;
+  private boolean ignition;
   private double theta;
   private final double speedIncrease = .1;
   private final double headingChange = 5;
-  private Circle c;
-  private Line l;
   private GameText helicopterText;
   private HelicopterBody helicopterBody;
   private HelicopterBlade helicopterBlade;
+  private HelicopterState helicopterState = new Off();
   public Helicopter(int initialFuel){
     heading = INITIAL_HEADING;
     speed = INITIAL_SPEED;
     fuel = initialFuel;
-//    c = new Circle();
-//    l = new Line(0,0,0,30);
+
     helicopterBody = new HelicopterBody();
     helicopterText = new GameText();
     helicopterBlade = new HelicopterBlade();
 
-    helicopterText.setTranslateX(HALF_GAME_WIDTH - 35);
-    helicopterText.setTranslateY(HALF_HELIPAD_POS - 15);
+    helicopterText.positionText(HELICOPTER_TEXT_POSITION_X,
+        HELICOPTER_TEXT_POSITION_Y);
     helicopterText.setText(String.format("%9d", fuel));
     helicopterText.setFill(Color.YELLOW);
 
-    helicopterBody.positionHelicopterBody(HALF_GAME_WIDTH-15,
-        HALF_HELIPAD_POS-50);
-    helicopterBlade.positionHelicopterBlade(HALF_GAME_WIDTH,
-        HALF_HELIPAD_POS-50);
+    helicopterBody.positionHelicopterBody(HELICOPTER_BODY_POSITION_X,
+        HELICOPTER_BODY_POSITION_Y);
+    helicopterBlade.positionHelicopterBlade(HELICOPTER_BLADE_POSITION_X,
+        HELICOPTER_BLADE_POSITION_Y);
     this.getChildren().addAll(helicopterBody, helicopterBlade, helicopterText);
   }
   public void update(){
@@ -426,10 +437,10 @@ class Helicopter extends GameObject implements Updatable{
     }
   }
   void move(){
-    this.setTranslateX(getTranslateX() + (speed * Math.cos(toRadians(theta))));
-    this.setTranslateY(getTranslateY() + (speed * Math.sin(toRadians(theta))));
+    this.setTranslateX(getTranslateX() + speed * Math.cos(toRadians(theta)));
+    this.setTranslateY(getTranslateY() + speed * Math.sin(toRadians(theta)));
     theta = 90 - heading;
-    this.setRotate(360 - heading);
+    helicopterBody.setRotate(360 - heading);
   }
   boolean isHelicopterMaxSpeed(){
     return speed >= MAX_COPTER_SPEED;
@@ -454,6 +465,12 @@ class Helicopter extends GameObject implements Updatable{
   }
   int getFuel(){
     return fuel;
+  }
+  public HelicopterState getState() {
+    return helicopterState;
+  }
+  public void setState(HelicopterState state) {
+    this.helicopterState = state;
   }
 }
 
@@ -502,10 +519,41 @@ class HelicopterBlade extends GameObject{
         double delta = (now - old) / 1e9;
         old = now;
         elapsedTime += delta;
-        helicopterBlade.setRotate(helicopterBlade.getRotate()+ 2);
+        helicopterBlade.setRotate(helicopterBlade.getRotate() + 4);
       }
     };
     rotateBlade.start();
+  }
+}
+class Starting implements HelicopterState{
+  public Starting(){
+    super();
+  }
+  @Override
+  public void toggleIgnition() {
+
+  }
+}
+
+class Stopping{
+  public Stopping(){
+
+  }
+}
+class Off implements HelicopterState{
+
+  public Off(){
+    super();
+  }
+  @Override
+  public void toggleIgnition(Helicopter helicopter) {
+    helicopter.ignitionOn();
+  }
+}
+
+class Ready{
+  public Ready(){
+
   }
 }
 
@@ -525,6 +573,10 @@ class GameText extends GameObject{
   }
   void setFill(Color color){
     text.setFill(color);
+  }
+  void positionText(double x, double y){
+    text.setTranslateX(x);
+    text.setTranslateY(y);
   }
 }
 
