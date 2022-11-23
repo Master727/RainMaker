@@ -66,9 +66,6 @@ public class GameApp extends Application {
 interface Updatable{
   void update();
 }
-interface HelicopterState {
-  void toggleIgnition();
-}
 
 class Game extends Pane implements Updatable{
   private static double elapsedTime = 0;
@@ -138,23 +135,14 @@ class Game extends Pane implements Updatable{
     }
   }
   void increaseSpeed(){
-    if(ignition){
-      if(!gameHelicopter.isHelicopterMaxSpeed()) {
-        gameHelicopter.increaseSpeed();
-      }
-    }
+    gameHelicopter.getState().increaseSpeed(gameHelicopter);
   }
   void decreaseSpeed(){
-    if(ignition){
-      if(!gameHelicopter.isHelicopterMinSpeed()) {
-        gameHelicopter.decreaseSpeed();
-      }
-    }
+    gameHelicopter.getState().decreaseSpeed(gameHelicopter);
   }
   void flipIgnition(){
     if(isIntersect(gameHelicopter, gameHelipad)){
-      ignition = !ignition;
-
+      gameHelicopter.toggleIgnition(gameHelicopter);
     }
   }
   void fireEvent(){
@@ -400,7 +388,6 @@ class Helicopter extends GameObject implements Updatable{
   private double heading;
   private double speed;
   private int fuel;
-  private boolean ignition;
   private double theta;
   private final double speedIncrease = .1;
   private final double headingChange = 5;
@@ -408,11 +395,12 @@ class Helicopter extends GameObject implements Updatable{
   private HelicopterBody helicopterBody;
   private HelicopterBlade helicopterBlade;
   private HelicopterState helicopterState = new Off();
+
   public Helicopter(int initialFuel){
     heading = INITIAL_HEADING;
     speed = INITIAL_SPEED;
     fuel = initialFuel;
-
+    System.out.println(getState());
     helicopterBody = new HelicopterBody();
     helicopterText = new GameText();
     helicopterBlade = new HelicopterBlade();
@@ -429,7 +417,7 @@ class Helicopter extends GameObject implements Updatable{
     this.getChildren().addAll(helicopterBody, helicopterBlade, helicopterText);
   }
   public void update(){
-    if(Game.getIgnition()){
+    if(helicopterState.toString().equals("Ready")){
       helicopterText.setText(String.format("%9d", fuel));
       helicopterBlade.rotateBlade();
       updateFuel();
@@ -469,11 +457,13 @@ class Helicopter extends GameObject implements Updatable{
   public HelicopterState getState() {
     return helicopterState;
   }
-  public void setState(HelicopterState state) {
+  void setState(HelicopterState state) {
     this.helicopterState = state;
   }
+  void toggleIgnition(Helicopter helicopter){
+    helicopterState.toggleIgnition(helicopter);
+  }
 }
-
 class HelicopterBody extends GameObject{
   private File helicopterBodyFile;
   private ImageView helicopterBody;
@@ -525,37 +515,67 @@ class HelicopterBlade extends GameObject{
     rotateBlade.start();
   }
 }
-class Starting implements HelicopterState{
-  public Starting(){
-    super();
-  }
-  @Override
-  public void toggleIgnition() {
-
-  }
-}
-
-class Stopping{
-  public Stopping(){
-
-  }
+interface HelicopterState {
+  void toggleIgnition(Helicopter helicopter);
+  String toString();
+  //void seedCloud();
+  void increaseSpeed(Helicopter helicopter);
+  void decreaseSpeed(Helicopter helicopter);
 }
 class Off implements HelicopterState{
-
-  public Off(){
-    super();
-  }
   @Override
   public void toggleIgnition(Helicopter helicopter) {
-    helicopter.ignitionOn();
+    helicopter.setState(new Ready());
+  }
+  @Override
+  public String toString(){
+    return "Off";
+  }
+  @Override
+  public void increaseSpeed(Helicopter helicopter){
+  }
+  @Override
+  public void decreaseSpeed(Helicopter helicopter){
   }
 }
 
-class Ready{
-  public Ready(){
-
+class Ready implements HelicopterState{
+  @Override
+  public void toggleIgnition(Helicopter helicopter) {
+    helicopter.setState(new Off());
+  }
+  @Override
+  public String toString(){
+    return "Ready";
+  }
+  @Override
+  public void increaseSpeed(Helicopter helicopter){
+    if(!helicopter.isHelicopterMaxSpeed()){
+      helicopter.increaseSpeed();
+    }
+  }
+  @Override
+  public void decreaseSpeed(Helicopter helicopter){
+    if(!helicopter.isHelicopterMinSpeed()){
+      helicopter.decreaseSpeed();
+    }
   }
 }
+
+//class Starting implements HelicopterState{
+//  @Override
+//  public void toggleIgnition(Helicopter helicopter) {
+//    helicopter.setState(new Stopping());
+//  }
+//}
+//
+//class Stopping implements HelicopterState{
+//  @Override
+//  public void toggleIgnition(Helicopter helicopter) {
+//    helicopter.setState(new Starting());
+//  }
+//}
+
 
 class GameText extends GameObject{
   private Text text;
