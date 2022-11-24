@@ -17,6 +17,9 @@ import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.scene.input.KeyEvent;
 import java.io.File;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.ListIterator;
 import java.util.Random;
 
 import static java.lang.Math.abs;
@@ -122,17 +125,14 @@ class Game extends Pane implements Updatable{
     gameCloud = new Cloud();
     gameHelipad = new Helipad();
     gameHelicopter = new Helicopter(INITIAL_FUEL);
-    this.getChildren().addAll(gamePond,gameCloud,gameHelipad,gameHelicopter);
+    this.getChildren().addAll(gamePond,gameCloud,gameHelipad,
+        gameHelicopter);
   }
   void headLeft(){
-    if(ignition){
-      gameHelicopter.headLeft();
-    }
+    gameHelicopter.getState().headLeft(gameHelicopter);
   }
   void headRight(){
-    if(ignition){
-      gameHelicopter.headRight();
-    }
+    gameHelicopter.getState().headRight(gameHelicopter);
   }
   void increaseSpeed(){
     gameHelicopter.getState().increaseSpeed(gameHelicopter);
@@ -203,14 +203,12 @@ class Game extends Pane implements Updatable{
   boolean isIntersect(GameObject object1, GameObject object2){
     return object1.getBoundsInParent().intersects(object2.getBoundsInParent());
   }
-  static boolean getIgnition(){
-    return ignition;
-  }
 }
 abstract class GameObject extends Group {
   public GameObject(){
   }
 }
+
 class Pond extends GameObject implements Updatable{
   private static final Random RAND = new Random();
   private static final int INITIAL_POND_MAX = 30;
@@ -261,8 +259,25 @@ class Pond extends GameObject implements Updatable{
   boolean pondRadiusOverX(double x){
     return pondRadius >= x;
   }
-
 }
+
+//class Ponds extends GameObject implements Iterable<Pond> {
+//  private LinkedList <Pond> pondList;
+//  public Ponds(){
+//    pondList = new LinkedList<>();
+//  }
+//  void addPondToList(Pond p){
+//    pondList.add(p);
+//    this.getChildren().add(p);
+//  }
+//
+//  @Override
+//  public Iterator<Pond> iterator() {
+//    return pond;
+//  }
+//}
+
+
 class Cloud extends GameObject implements Updatable{
   private static final int CLOUD_WIDTH = 50;
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
@@ -385,6 +400,8 @@ class Helicopter extends GameObject implements Updatable{
       HALF_GAME_WIDTH - 35;
   private static final double HELICOPTER_TEXT_POSITION_Y =
       HALF_HELIPAD_POS - 55;
+  private static final double BLADE_MAX_ROTATION = 30;
+  private static final double BLADE_MIN_ROTATION = 0;
   private double heading;
   private double speed;
   private int fuel;
@@ -404,6 +421,7 @@ class Helicopter extends GameObject implements Updatable{
     helicopterBody = new HelicopterBody();
     helicopterText = new GameText();
     helicopterBlade = new HelicopterBlade();
+    helicopterBlade.rotateBlade();
 
     helicopterText.positionText(HELICOPTER_TEXT_POSITION_X,
         HELICOPTER_TEXT_POSITION_Y);
@@ -419,10 +437,26 @@ class Helicopter extends GameObject implements Updatable{
   public void update(){
     if(helicopterState.toString().equals("Ready")){
       helicopterText.setText(String.format("%9d", fuel));
-      helicopterBlade.rotateBlade();
       updateFuel();
       move();
     }
+    else if(helicopterState.toString().equals("Starting")){
+      if(helicopterBlade.getBladeRotationSpeed() < BLADE_MAX_ROTATION){
+        helicopterBlade.spinUpBlade();
+      }
+      else{
+        helicopterState = new Ready();
+      }
+    }
+    else if(helicopterState.toString().equals("Stopping")) {
+      if(helicopterBlade.getBladeRotationSpeed() > BLADE_MIN_ROTATION){
+        helicopterBlade.spinDownBlade();
+      }
+      else{
+        helicopterState = new Off();
+      }
+    }
+    System.out.println(helicopterState.toString());
   }
   void move(){
     this.setTranslateX(getTranslateX() + speed * Math.cos(toRadians(theta)));
@@ -487,6 +521,9 @@ class HelicopterBlade extends GameObject{
   private ImageView helicopterBlade;
   private AnimationTimer rotateBlade;
   private static double elapsedTime = 0;
+  private static double pastTime = 0;
+  private double rotationSpeed = 0;
+  private static final double ROTATION_INCREMENT = .1;
   public HelicopterBlade(){
     helicopterBladeFile = new File("Images/Helicopter Blade.png");
     Image image = new Image(helicopterBladeFile.toURI().toString());
@@ -509,11 +546,21 @@ class HelicopterBlade extends GameObject{
         double delta = (now - old) / 1e9;
         old = now;
         elapsedTime += delta;
-        helicopterBlade.setRotate(helicopterBlade.getRotate() + 4);
+        helicopterBlade.setRotate(helicopterBlade.getRotate() + rotationSpeed);
       }
     };
     rotateBlade.start();
   }
+  double getBladeRotationSpeed(){
+    return rotationSpeed;
+  }
+  void spinUpBlade(){
+    rotationSpeed += ROTATION_INCREMENT;
+  }
+  void spinDownBlade(){
+    rotationSpeed -= ROTATION_INCREMENT;
+  }
+
 }
 interface HelicopterState {
   void toggleIgnition(Helicopter helicopter);
@@ -521,11 +568,13 @@ interface HelicopterState {
   //void seedCloud();
   void increaseSpeed(Helicopter helicopter);
   void decreaseSpeed(Helicopter helicopter);
+  void headLeft(Helicopter helicopter);
+  void headRight(Helicopter helicopter);
 }
 class Off implements HelicopterState{
   @Override
   public void toggleIgnition(Helicopter helicopter) {
-    helicopter.setState(new Ready());
+    helicopter.setState(new Starting());
   }
   @Override
   public String toString(){
@@ -537,12 +586,16 @@ class Off implements HelicopterState{
   @Override
   public void decreaseSpeed(Helicopter helicopter){
   }
+  @Override
+  public void headLeft(Helicopter helicopter){}
+  @Override
+  public void headRight(Helicopter helicopter){}
 }
 
 class Ready implements HelicopterState{
   @Override
   public void toggleIgnition(Helicopter helicopter) {
-    helicopter.setState(new Off());
+    helicopter.setState(new Stopping());
   }
   @Override
   public String toString(){
@@ -560,21 +613,61 @@ class Ready implements HelicopterState{
       helicopter.decreaseSpeed();
     }
   }
+  @Override
+  public void headLeft(Helicopter helicopter){
+    helicopter.headLeft();
+  }
+  @Override
+  public void headRight(Helicopter helicopter){
+    helicopter.headRight();
+  }
 }
 
-//class Starting implements HelicopterState{
-//  @Override
-//  public void toggleIgnition(Helicopter helicopter) {
-//    helicopter.setState(new Stopping());
+class Starting implements HelicopterState{
+//  public Starting(Helicopter helicopter){
+//    helicopter.spinUpBlade();
+//    //helicopter.setState(new Ready());
 //  }
-//}
+  @Override
+  public void toggleIgnition(Helicopter helicopter) {
+    helicopter.setState(new Stopping());
+  }
+  @Override
+  public String toString(){
+    return "Starting";
+  }
+  @Override
+  public void increaseSpeed(Helicopter helicopter){}
+  @Override
+  public void decreaseSpeed(Helicopter helicopter){}
+  @Override
+  public void headLeft(Helicopter helicopter){}
+  @Override
+  public void headRight(Helicopter helicopter){}
+
+}
+
+class Stopping implements HelicopterState{
+//  public Stopping(Helicopter helicopter){
 //
-//class Stopping implements HelicopterState{
-//  @Override
-//  public void toggleIgnition(Helicopter helicopter) {
-//    helicopter.setState(new Starting());
 //  }
-//}
+  @Override
+  public void toggleIgnition(Helicopter helicopter) {
+    helicopter.setState(new Starting());
+  }
+  @Override
+  public String toString(){
+    return "Stopping";
+  }
+  @Override
+  public void increaseSpeed(Helicopter helicopter){}
+  @Override
+  public void decreaseSpeed(Helicopter helicopter){}
+  @Override
+  public void headLeft(Helicopter helicopter){}
+  @Override
+  public void headRight(Helicopter helicopter){}
+}
 
 
 class GameText extends GameObject{
