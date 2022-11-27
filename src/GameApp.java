@@ -17,10 +17,7 @@ import javafx.scene.text.Text;
 import javafx.stage.Stage;
 import javafx.scene.input.KeyEvent;
 import java.io.File;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.ListIterator;
-import java.util.Random;
+import java.util.*;
 
 import static java.lang.Math.abs;
 import static java.lang.Math.toRadians;
@@ -261,21 +258,16 @@ class Pond extends GameObject implements Updatable{
   }
 }
 
-//class Ponds extends GameObject implements Iterable<Pond> {
-//  private LinkedList <Pond> pondList;
-//  public Ponds(){
-//    pondList = new LinkedList<>();
-//  }
-//  void addPondToList(Pond p){
-//    pondList.add(p);
-//    this.getChildren().add(p);
-//  }
-//
-//  @Override
-//  public Iterator<Pond> iterator() {
-//    return pond;
-//  }
-//}
+class Ponds extends GameObject {
+  private List<Pond> pondList;
+  public Ponds(){
+    pondList = new LinkedList<>();
+  }
+  void addPondToList(Pond p){
+    pondList.add(p);
+    this.getChildren().add(p);
+  }
+}
 
 
 class Cloud extends GameObject implements Updatable{
