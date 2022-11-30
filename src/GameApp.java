@@ -74,11 +74,16 @@ class Game extends Pane implements Updatable{
   private static boolean ignition = INITIAL_IGNITION;
   private static boolean fireEventInActive = true;
   private static final int INITIAL_FUEL = 25000;
-  private Cloud gameCloud;
+  //private Cloud gameCloud;
   private Helipad gameHelipad;
   private Helicopter gameHelicopter;
   private AnimationTimer game;
   private Ponds gamePonds;
+  private Clouds gameClouds;
+  private static final Random RAND = new Random();
+  private static final int MAX_NUMBER_OF_CLOUDS = 6;
+  private static final int MIN_NUMBER_OF_CLOUDS = 3;
+  private int numberOfClouds;
   private static final StringBuilder STRING_BUILDER = new StringBuilder();
   private static Alert alert;
   public Game(){
@@ -103,32 +108,44 @@ class Game extends Pane implements Updatable{
     game.start();
   }
   public void update(){
-    if(gameCloud.isFullnessOverX(30)){
-      gameCloud.update();
-      gameHelicopter.update();
-      for (Pond gamePond : gamePonds) {
-        gamePond.update();
+    for (Cloud cloud: gameClouds) {
+      if(cloud.isFullnessOverX(30)){
+        cloud.update();
+        gameHelicopter.update();
+        for(Pond gamePond : gamePonds) {
+          if(gamePond.pondRadiusOverX(100))
+            gamePond.update();
+        }
+        if(elapsedTime - pastTime > 1.0 && fireEventInActive){
+          pastTime = elapsedTime;
+          cloud.decay();
+        }
+      }else{
+        cloud.update();
+        gameHelicopter.update();
       }
-
-      if(elapsedTime - pastTime > 1.0 && fireEventInActive){
-        pastTime = elapsedTime;
-        gameCloud.decay();
-      }
-    }else{
-      gameCloud.update();
-      gameHelicopter.update();
     }
+
   }
   void instantiateGameObjects(){
+    numberOfClouds = RAND.nextInt(
+        MAX_NUMBER_OF_CLOUDS - MIN_NUMBER_OF_CLOUDS) + MIN_NUMBER_OF_CLOUDS;
+
     gamePonds = new Ponds();
-    gameCloud = new Cloud();
+    gameClouds = new Clouds();
+
     gameHelipad = new Helipad();
     gameHelicopter = new Helicopter(INITIAL_FUEL);
     for(int i = 0; i < 3; i++){
       Pond gamePond = new Pond();
       gamePonds.addPondToList(gamePond);
     }
-    this.getChildren().addAll(gamePonds,gameCloud,gameHelipad,
+    for(int i = 0; i < numberOfClouds; i++){
+      System.out.println("Number of Clouds: " + numberOfClouds);
+      Cloud gameCloud = new Cloud();
+      gameClouds.addCloudToList(gameCloud);
+    }
+    this.getChildren().addAll(gamePonds,gameClouds,gameHelipad,
         gameHelicopter);
   }
   void headLeft(){
@@ -150,9 +167,11 @@ class Game extends Pane implements Updatable{
   }
   void fireEvent(){
     fireEventInActive = !fireEventInActive;
-    if(isIntersect(gameHelicopter, gameCloud)){
-      if(!gameCloud.isFullnessOverX(100)){
-        gameCloud.colorChange();
+    for (Cloud gameCloud : gameClouds) {
+      if(isIntersect(gameHelicopter, gameCloud)){
+        if(!gameCloud.isFullnessOverX(100)){
+          gameCloud.colorChange();
+        }
       }
     }
     fireEventInActive = !fireEventInActive;
@@ -221,7 +240,6 @@ class Pond extends GameObject implements Updatable{
     pondText = new Text();
     pondText.setScaleY(-1);
     pondText.setFill(Color.WHITE);
-    c = new Circle();
     getNewPosition();
   }
   public void update(){
@@ -229,19 +247,21 @@ class Pond extends GameObject implements Updatable{
     grow();
   }
   void grow(){
-    if(!pondRadiusOverX(100)){
+    if(pondRadiusOverX(100)){
       double area = (Math.pow(c.getRadius(), 2) * Math.PI) + 3;
       pondRadius = Math.sqrt(area/Math.PI);
       c.setRadius(pondRadius);
     }
   }
   boolean pondRadiusOverX(double x){
-    return pondRadius >= x;
+    return !(pondRadius >= x);
   }
   int getPondRadius(){
     return (int)pondRadius;
   }
   void getNewPosition(){
+    this.getChildren().clear();
+    c = new Circle();
     pondRadius = RAND.nextInt(
         INITIAL_POND_MAX - INITIAL_POND_MIN) + INITIAL_POND_MIN;
     int randomMaxH = GAME_HEIGHT - (int) pondRadius;
@@ -270,7 +290,6 @@ class Ponds extends GameObject implements Iterable<Pond> {
   public Ponds() {
     pondList = new LinkedList<>();
   }
-
   void addPondToList(Pond p) {
     if(getListSize() > 1){
       for (Pond pond : pondList) {
@@ -282,7 +301,6 @@ class Ponds extends GameObject implements Iterable<Pond> {
     pondList.add(p);
     this.getChildren().add(p);
   }
-
   int getListSize(){
     return pondList.size();
   }
@@ -338,20 +356,6 @@ class Cloud extends GameObject implements Updatable{
     c.setCenterY(initialCloudPosition.getY());
     this.getChildren().addAll(c, cloudText);
   }
-//  void getNewPosition(){
-//    initialCloudPosition = new Point2D(RAND.nextInt
-//        (RANDOM_MAX_W - CLOUD_WIDTH) + CLOUD_WIDTH, RAND.nextInt
-//        (RANDOM_MAX_H - RANDOM_MIN_H) + RANDOM_MIN_H);
-//    c.setRadius(CLOUD_WIDTH);
-//    c.setCenterX(initialCloudPosition.getX());
-//    c.setCenterY(initialCloudPosition.getY());
-//
-//    cloudText.setScaleY(-1);
-//    cloudText.setTranslateX(initialCloudPosition.getX());
-//    cloudText.setTranslateY(initialCloudPosition.getY());
-//    cloudText.setText(String.format("%4d", cloudFullness));
-//    cloudText.setFill(Color.BLACK);
-//  }
   public void update(){
     cloudText.setText(String.format("%4d", cloudFullness));
   }
@@ -370,9 +374,24 @@ class Cloud extends GameObject implements Updatable{
   }
 }
 
-class Clouds{
+class Clouds extends GameObject implements Iterable<Cloud>{
+  private List cloudList;
   public Clouds(){
-
+    cloudList = new LinkedList<>();
+  }
+  void addCloudToList(Cloud c) {
+    cloudList.add(c);
+    this.getChildren().add(c);
+  }
+  int getListSize(){
+    return cloudList.size();
+  }
+  boolean isIntersect(Pond pond1, Pond pond2){
+    return pond1.getBoundsInParent().intersects(pond2.getBoundsInParent());
+  }
+  @Override
+  public Iterator<Cloud> iterator() {
+    return cloudList.iterator();
   }
 }
 
@@ -450,7 +469,6 @@ class Helicopter extends GameObject implements Updatable{
     heading = INITIAL_HEADING;
     speed = INITIAL_SPEED;
     fuel = initialFuel;
-    System.out.println(getState());
     helicopterBody = new HelicopterBody();
     helicopterText = new GameText();
     helicopterBlade = new HelicopterBlade();
@@ -489,7 +507,6 @@ class Helicopter extends GameObject implements Updatable{
         helicopterState = new Off();
       }
     }
-    System.out.println(helicopterState.toString());
   }
   void move(){
     this.setTranslateX(getTranslateX() + speed * Math.cos(toRadians(theta)));
@@ -601,7 +618,7 @@ class HelicopterBlade extends GameObject{
 interface HelicopterState {
   void toggleIgnition(Helicopter helicopter);
   String toString();
-  //void seedCloud();
+  //void seedingCloud();
   void increaseSpeed(Helicopter helicopter);
   void decreaseSpeed(Helicopter helicopter);
   void headLeft(Helicopter helicopter);
@@ -660,10 +677,6 @@ class Ready implements HelicopterState{
 }
 
 class Starting implements HelicopterState{
-//  public Starting(Helicopter helicopter){
-//    helicopter.spinUpBlade();
-//    //helicopter.setState(new Ready());
-//  }
   @Override
   public void toggleIgnition(Helicopter helicopter) {
     helicopter.setState(new Stopping());
