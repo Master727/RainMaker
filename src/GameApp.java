@@ -74,18 +74,17 @@ class Game extends Pane implements Updatable{
   private static boolean ignition = INITIAL_IGNITION;
   private static boolean fireEventInActive = true;
   private static final int INITIAL_FUEL = 25000;
-  private Pond gamePond;
   private Cloud gameCloud;
   private Helipad gameHelipad;
   private Helicopter gameHelicopter;
   private AnimationTimer game;
+  private Ponds gamePonds;
   private static final StringBuilder STRING_BUILDER = new StringBuilder();
   private static Alert alert;
   public Game(){
     this.setStyle("-fx-background-color: black;");
     instantiateGameObjects();
     this.setScaleY(-1);
-    cloudIntersectPond();
     init();
   }
   void init(){
@@ -107,7 +106,10 @@ class Game extends Pane implements Updatable{
     if(gameCloud.isFullnessOverX(30)){
       gameCloud.update();
       gameHelicopter.update();
-      gamePond.update();
+      for (Pond gamePond : gamePonds) {
+        gamePond.update();
+      }
+
       if(elapsedTime - pastTime > 1.0 && fireEventInActive){
         pastTime = elapsedTime;
         gameCloud.decay();
@@ -118,11 +120,15 @@ class Game extends Pane implements Updatable{
     }
   }
   void instantiateGameObjects(){
-    gamePond = new Pond();
+    gamePonds = new Ponds();
     gameCloud = new Cloud();
     gameHelipad = new Helipad();
     gameHelicopter = new Helicopter(INITIAL_FUEL);
-    this.getChildren().addAll(gamePond,gameCloud,gameHelipad,
+    for(int i = 0; i < 3; i++){
+      Pond gamePond = new Pond();
+      gamePonds.addPondToList(gamePond);
+    }
+    this.getChildren().addAll(gamePonds,gameCloud,gameHelipad,
         gameHelicopter);
   }
   void headLeft(){
@@ -152,11 +158,11 @@ class Game extends Pane implements Updatable{
     fireEventInActive = !fireEventInActive;
   }
   void gameWinLoseRestart(){
-    if(gamePond.pondRadiusOverX(100) || gameHelicopter.getFuel() <= 0 ){
+    if(gamePonds.isFullnessOfAllPondsOverX(80) || gameHelicopter.getFuel() <= 0 ){
       game.stop();
-      System.out.println("First if statement");
-      if(gamePond.pondRadiusOverX(100) && isIntersect(gameHelicopter,
-          gameHelipad) && !ignition){
+      if(gamePonds.isFullnessOfAllPondsOverX(80) && isIntersect(gameHelicopter,
+          gameHelipad) && gameHelicopter.getHelicopterStateName().equals(
+              "Off")){
         addText("Congratulations! You won with a score of " +
             gameHelicopter.getFuel() + " Would you like to play " +
             "again?");
@@ -170,8 +176,6 @@ class Game extends Pane implements Updatable{
         if (alert.getResult() == ButtonType.YES) {
           this.getChildren().clear();
           instantiateGameObjects();
-          ignition = INITIAL_IGNITION;
-          cloudIntersectPond();
           this.init();
         }
         else
@@ -184,14 +188,7 @@ class Game extends Pane implements Updatable{
     game.stop();
     this.getChildren().clear();
     instantiateGameObjects();
-    ignition = INITIAL_IGNITION;
-    cloudIntersectPond();
     this.init();
-  }
-  void cloudIntersectPond(){
-    while(isIntersect(gameCloud, gamePond)){
-      gameCloud.getNewPosition();
-    }
   }
   void addText(String s){
     STRING_BUILDER.setLength(0);
@@ -199,6 +196,9 @@ class Game extends Pane implements Updatable{
   }
   boolean isIntersect(GameObject object1, GameObject object2){
     return object1.getBoundsInParent().intersects(object2.getBoundsInParent());
+  }
+  boolean isCloudNearPond(){
+    return false;
   }
 }
 abstract class GameObject extends Group {
@@ -214,33 +214,15 @@ class Pond extends GameObject implements Updatable{
   private static final int GAME_WIDTH = GameApp.getGameWidth();
   private static final int OFFSET = GAME_HEIGHT / 4;
   private Circle c;
-  private double pondRadius;
-  private final Text pondText;
+  private double pondRadius = 0;
+  private Text pondText;
+  private Point2D pondPosition;
   public Pond(){
-    c = new Circle();
-    pondRadius = RAND.nextInt(
-        INITIAL_POND_MAX - INITIAL_POND_MIN) + INITIAL_POND_MIN;
     pondText = new Text();
-    int randomMaxH = GAME_HEIGHT - (int) pondRadius;
-    int randomMaxW = GAME_WIDTH - (int) pondRadius;
-    int randomMinH = OFFSET + (int) pondRadius;
-
-
-    Point2D initialPondPosition = new Point2D(RAND.nextInt
-        (randomMaxW - (int) pondRadius) + pondRadius, RAND.nextInt
-        (randomMaxH - randomMinH) + randomMinH);
-
     pondText.setScaleY(-1);
-    pondText.setTranslateX(initialPondPosition.getX());
-    pondText.setTranslateY(initialPondPosition.getY());
-    pondText.setText(String.format("%4d", (int) pondRadius));
     pondText.setFill(Color.WHITE);
-
-    c.setFill(Color.BLUE);
-    c.setRadius(pondRadius);
-    c.setCenterX(initialPondPosition.getX());
-    c.setCenterY(initialPondPosition.getY());
-    this.getChildren().addAll(c, pondText);
+    c = new Circle();
+    getNewPosition();
   }
   public void update(){
     pondText.setText(String.format("%4d", (int)pondRadius));
@@ -256,16 +238,68 @@ class Pond extends GameObject implements Updatable{
   boolean pondRadiusOverX(double x){
     return pondRadius >= x;
   }
+  int getPondRadius(){
+    return (int)pondRadius;
+  }
+  void getNewPosition(){
+    pondRadius = RAND.nextInt(
+        INITIAL_POND_MAX - INITIAL_POND_MIN) + INITIAL_POND_MIN;
+    int randomMaxH = GAME_HEIGHT - (int) pondRadius;
+    int randomMaxW = GAME_WIDTH - (int) pondRadius;
+    int randomMinH = OFFSET + (int) pondRadius;
+
+    pondPosition = new Point2D(RAND.nextInt
+        (randomMaxW - (int) pondRadius) + pondRadius, RAND.nextInt
+        (randomMaxH - randomMinH) + randomMinH);
+
+    pondText.setTranslateX(pondPosition.getX());
+    pondText.setTranslateY(pondPosition.getY());
+    pondText.setText(String.format("%4d", (int) pondRadius));
+
+    c.setFill(Color.BLUE);
+    c.setRadius(pondRadius);
+    c.setCenterX(pondPosition.getX());
+    c.setCenterY(pondPosition.getY());
+    this.getChildren().addAll(c, pondText);
+  }
 }
 
-class Ponds extends GameObject {
+class Ponds extends GameObject implements Iterable<Pond> {
   private List<Pond> pondList;
-  public Ponds(){
+
+  public Ponds() {
     pondList = new LinkedList<>();
   }
-  void addPondToList(Pond p){
+
+  void addPondToList(Pond p) {
+    if(getListSize() > 1){
+      for (Pond pond : pondList) {
+        if(isIntersect(pond, p)){
+          p.getNewPosition();
+        }
+      }
+    }
     pondList.add(p);
     this.getChildren().add(p);
+  }
+
+  int getListSize(){
+    return pondList.size();
+  }
+  boolean isFullnessOfAllPondsOverX(int x){
+    int totalFullnessOfAllPonds = 0;
+    for (Pond pond : pondList) {
+      totalFullnessOfAllPonds =
+          (totalFullnessOfAllPonds + pond.getPondRadius()) / getListSize();
+    }
+    return totalFullnessOfAllPonds > x;
+  }
+  boolean isIntersect(Pond pond1, Pond pond2){
+    return pond1.getBoundsInParent().intersects(pond2.getBoundsInParent());
+  }
+  @Override
+  public Iterator<Pond> iterator() {
+    return pondList.iterator();
   }
 }
 
@@ -304,20 +338,20 @@ class Cloud extends GameObject implements Updatable{
     c.setCenterY(initialCloudPosition.getY());
     this.getChildren().addAll(c, cloudText);
   }
-  void getNewPosition(){
-    initialCloudPosition = new Point2D(RAND.nextInt
-        (RANDOM_MAX_W - CLOUD_WIDTH) + CLOUD_WIDTH, RAND.nextInt
-        (RANDOM_MAX_H - RANDOM_MIN_H) + RANDOM_MIN_H);
-    c.setRadius(CLOUD_WIDTH);
-    c.setCenterX(initialCloudPosition.getX());
-    c.setCenterY(initialCloudPosition.getY());
-
-    cloudText.setScaleY(-1);
-    cloudText.setTranslateX(initialCloudPosition.getX());
-    cloudText.setTranslateY(initialCloudPosition.getY());
-    cloudText.setText(String.format("%4d", cloudFullness));
-    cloudText.setFill(Color.BLACK);
-  }
+//  void getNewPosition(){
+//    initialCloudPosition = new Point2D(RAND.nextInt
+//        (RANDOM_MAX_W - CLOUD_WIDTH) + CLOUD_WIDTH, RAND.nextInt
+//        (RANDOM_MAX_H - RANDOM_MIN_H) + RANDOM_MIN_H);
+//    c.setRadius(CLOUD_WIDTH);
+//    c.setCenterX(initialCloudPosition.getX());
+//    c.setCenterY(initialCloudPosition.getY());
+//
+//    cloudText.setScaleY(-1);
+//    cloudText.setTranslateX(initialCloudPosition.getX());
+//    cloudText.setTranslateY(initialCloudPosition.getY());
+//    cloudText.setText(String.format("%4d", cloudFullness));
+//    cloudText.setFill(Color.BLACK);
+//  }
   public void update(){
     cloudText.setText(String.format("%4d", cloudFullness));
   }
@@ -335,6 +369,13 @@ class Cloud extends GameObject implements Updatable{
     return cloudFullness >= x;
   }
 }
+
+class Clouds{
+  public Clouds(){
+
+  }
+}
+
 class Helipad extends GameObject {
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
@@ -479,6 +520,9 @@ class Helicopter extends GameObject implements Updatable{
   }
   int getFuel(){
     return fuel;
+  }
+  String getHelicopterStateName(){
+    return helicopterState.toString();
   }
   public HelicopterState getState() {
     return helicopterState;
