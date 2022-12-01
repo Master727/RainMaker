@@ -8,8 +8,9 @@ import javafx.scene.control.Alert;
 import javafx.scene.control.ButtonType;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.layout.Pane;
+import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.ImagePattern;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Rectangle;
 import javafx.scene.text.Font;
@@ -26,11 +27,18 @@ public class GameApp extends Application {
   private static final int GAME_HEIGHT = 800;
   private static final int GAME_WIDTH = 800;
   private static final Point2D size = new Point2D(GAME_WIDTH, GAME_HEIGHT);
-  private Game newGame = new Game();
+  private Game newGame;
 
   public void start(Stage stage) {
+    //Image is taken from https://www.vectorstock.com/
+    //Artist alexzel
+    //All credit and right belong to vectorstock and alexzel
+    File backgroundFile = new File("Images/background3.jpg");
+    Image backgroundImage = new Image(backgroundFile.toURI().toString());
+    ImagePattern backgroundPattern = new ImagePattern(backgroundImage);
+    newGame = new Game(backgroundImage);
     Scene scene = new Scene(newGame, size.getX(), size.getY());
-    scene.setFill(Color.BLACK);
+    scene.setFill(backgroundPattern);
     scene.setOnKeyPressed(this::setOnKeyPressed);
 
 
@@ -70,8 +78,6 @@ interface Updatable{
 class Game extends Pane implements Updatable{
   private static double elapsedTime = 0;
   private static double pastTime = 0;
-  private static final boolean INITIAL_IGNITION = false;
-  private static boolean ignition = INITIAL_IGNITION;
   private static boolean fireEventInActive = true;
   private static final int INITIAL_FUEL = 25000;
   private Helipad gameHelipad;
@@ -85,8 +91,14 @@ class Game extends Pane implements Updatable{
   private int numberOfClouds;
   private static final StringBuilder STRING_BUILDER = new StringBuilder();
   private static Alert alert;
-  public Game(){
-    this.setStyle("-fx-background-color: black;");
+  public Game(Image backgroundImage){
+    BackgroundImage paneBackground = new BackgroundImage(backgroundImage,
+        BackgroundRepeat.NO_REPEAT,
+        BackgroundRepeat.NO_REPEAT,
+        BackgroundPosition.DEFAULT,
+        BackgroundSize.DEFAULT);
+    Background background = new Background(paneBackground);
+    this.setBackground(background);
     instantiateGameObjects();
     this.setScaleY(-1);
     init();
@@ -108,12 +120,11 @@ class Game extends Pane implements Updatable{
   }
   public void update(){
     for (Cloud cloud: gameClouds) {
-      if(elapsedTime - pastTime > 1.0 && fireEventInActive) {
-        pastTime = elapsedTime;
-        cloud.decay();
-      }
-      cloud.update();
-      if(cloud.isFullnessOverX(30)){
+      if(cloud.isFullnessOverX(30)) {
+        if(elapsedTime - pastTime > 1.0 && fireEventInActive) {
+          pastTime = elapsedTime;
+          cloud.decay();
+        }
         for(Pond pond : gamePonds) {
           if(pond.isPondRadiusUnderX(100) && isCloudNearPond(cloud,
               pond)){
@@ -121,6 +132,7 @@ class Game extends Pane implements Updatable{
           }
         }
       }
+      cloud.update();
     }
     gameHelicopter.update();
   }
@@ -219,7 +231,7 @@ class Game extends Pane implements Updatable{
         Math.hypot(Math.abs(cloud.getTranslateX() - pond.getTranslateX()),
             Math.abs(cloud.getTranslateY() - pond.getTranslateY()));
 
-    return cloud.getCloudDiameter() * 4 > distance;
+    return cloud.getCloudDiameter() * 2.5 > distance;
   }
 }
 abstract class GameObject extends Group {
@@ -333,6 +345,7 @@ class Cloud extends GameObject implements Updatable{
   private static final int RANDOM_MAX_H = GAME_HEIGHT - CLOUD_WIDTH;
   private static final int RANDOM_MIN_H = OFFSET + CLOUD_WIDTH;
   private static final int STARTING_COLOR = 255;
+  private static final double CLOUD_OPACITY = .7;
   private int cloudColor = STARTING_COLOR;
   private int cloudFullness = 0;
   private Text cloudText;
@@ -354,6 +367,7 @@ class Cloud extends GameObject implements Updatable{
 
     c.setFill(Color.WHITE);
     c.setRadius(CLOUD_WIDTH);
+    c.setOpacity(CLOUD_OPACITY);
     this.setTranslateX(initialCloudPosition.getX());
     this.setTranslateY(initialCloudPosition.getY());
     this.getChildren().addAll(c, cloudText);
@@ -452,14 +466,14 @@ class Helicopter extends GameObject implements Updatable{
   private static final double HELICOPTER_BODY_POSITION_Y =
       HALF_HELIPAD_POS - 50;
   private static final double HELICOPTER_BLADE_POSITION_X =
-      HALF_GAME_WIDTH-1;
+      HALF_GAME_WIDTH-2;
   private static final double HELICOPTER_BLADE_POSITION_Y =
       HALF_HELIPAD_POS - 50;
   private static final double HELICOPTER_TEXT_POSITION_X =
       HALF_GAME_WIDTH - 35;
   private static final double HELICOPTER_TEXT_POSITION_Y =
       HALF_HELIPAD_POS - 55;
-  private static final double BLADE_MAX_ROTATION = 30;
+  private static final double BLADE_MAX_ROTATION = 50;
   private static final double BLADE_MIN_ROTATION = 0;
   private double heading;
   private double speed;
@@ -567,7 +581,7 @@ class HelicopterBody extends GameObject{
     helicopterBody = new ImageView(image);
     helicopterBody.setPreserveRatio(true);
     helicopterBody.setScaleY(-1);
-    helicopterBody.setFitHeight(100);
+    helicopterBody.setFitHeight(90);
     this.getChildren().add(helicopterBody);
   }
   void positionHelicopterBody(double x, double y){
@@ -581,7 +595,6 @@ class HelicopterBlade extends GameObject{
   private ImageView helicopterBlade;
   private AnimationTimer rotateBlade;
   private static double elapsedTime = 0;
-  private static double pastTime = 0;
   private double rotationSpeed = 0;
   private static final double ROTATION_INCREMENT = .1;
   public HelicopterBlade(){
@@ -590,7 +603,7 @@ class HelicopterBlade extends GameObject{
     helicopterBlade = new ImageView(image);
     helicopterBlade.setPreserveRatio(true);
     helicopterBlade.setScaleY(-1);
-    helicopterBlade.setFitHeight(100);
+    helicopterBlade.setFitHeight(90);
     this.getChildren().add(helicopterBlade);
   }
   void positionHelicopterBlade(double x, double y){
