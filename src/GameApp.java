@@ -32,7 +32,7 @@ public class GameApp extends Application {
   public void start(Stage stage) {
     //Image is taken from https://www.vectorstock.com/
     //Artist alexzel
-    //All credit and right belong to vectorstock and alexzel
+    //All credit and rights belong to vectorstock and alexzel
     File backgroundFile = new File("Images/background3.jpg");
     Image backgroundImage = new Image(backgroundFile.toURI().toString());
     ImagePattern backgroundPattern = new ImagePattern(backgroundImage);
@@ -119,7 +119,7 @@ class Game extends Pane implements Updatable{
     game.start();
   }
   public void update(){
-    for (Cloud cloud: gameClouds) {
+    for (Cloud cloud : gameClouds) {
       if(cloud.isFullnessOverX(30)) {
         if(elapsedTime - pastTime > 1.0 && fireEventInActive) {
           pastTime = elapsedTime;
@@ -150,7 +150,6 @@ class Game extends Pane implements Updatable{
       gamePonds.addPondToList(gamePond);
     }
     for(int i = 0; i < numberOfClouds; i++){
-      System.out.println("Number of Clouds: " + numberOfClouds);
       Cloud gameCloud = new Cloud();
       gameClouds.addCloudToList(gameCloud);
     }
@@ -352,6 +351,9 @@ class Cloud extends GameObject implements Updatable{
   private Circle c;
   private static final Random RAND = new Random();
   private Point2D initialCloudPosition;
+  private static final double WIND_SPEED = 1;
+  private final double cloudSpeed = WIND_SPEED * abs(RAND.nextGaussian());
+
   public Cloud(){
     cloudText = new Text();
     c = new Circle();
@@ -360,8 +362,6 @@ class Cloud extends GameObject implements Updatable{
         (RANDOM_MAX_H - RANDOM_MIN_H) + RANDOM_MIN_H);
 
     cloudText.setScaleY(-1);
-//    cloudText.setTranslateX(initialCloudPosition.getX());
-//    cloudText.setTranslateY(initialCloudPosition.getY());
     cloudText.setText(String.format("%4d", cloudFullness));
     cloudText.setFill(Color.BLACK);
 
@@ -371,6 +371,8 @@ class Cloud extends GameObject implements Updatable{
     this.setTranslateX(initialCloudPosition.getX());
     this.setTranslateY(initialCloudPosition.getY());
     this.getChildren().addAll(c, cloudText);
+
+
   }
   public void update(){
     cloudText.setText(String.format("%4d", cloudFullness));
@@ -393,16 +395,29 @@ class Cloud extends GameObject implements Updatable{
   double getCloudDiameter() {
     return CLOUD_WIDTH * 2;
   }
+  double getSpeed(){
+    return cloudSpeed;
+  }
+
+}
+
+interface CloudState{
+  String toString();
+  void offScreenLeft();
+  void offScreenRight();
 }
 
 class Clouds extends GameObject implements Iterable<Cloud>{
   private List cloudList;
+  private AnimationTimer moveCloud;
+  private double elapsedTime = 0;
   public Clouds(){
     cloudList = new LinkedList<>();
   }
   void addCloudToList(Cloud c) {
     cloudList.add(c);
     this.getChildren().add(c);
+    moveCloud(c);
   }
   int getListSize(){
     return cloudList.size();
@@ -413,6 +428,22 @@ class Clouds extends GameObject implements Iterable<Cloud>{
   @Override
   public Iterator<Cloud> iterator() {
     return cloudList.iterator();
+  }
+  void moveCloud(Cloud c){
+    moveCloud = new AnimationTimer() {
+      private double old = -1;
+
+      @Override
+      public void handle(long now) {
+        if (old < 0) old = now;
+        double delta = (now - old) / 1e9;
+        old = now;
+        elapsedTime += delta;
+        c.setTranslateX(c.getTranslateX() + c.getSpeed());
+        System.out.println(c.getSpeed());
+      }
+    };
+    moveCloud.start();
   }
 }
 
