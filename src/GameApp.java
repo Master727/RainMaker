@@ -86,7 +86,7 @@ class Game extends Pane implements Updatable{
   private Ponds gamePonds;
   private Clouds gameClouds;
   private static final Random RAND = new Random();
-  private static final int MAX_NUMBER_OF_CLOUDS = 6;
+  private static final int MAX_NUMBER_OF_CLOUDS = 5;
   private static final int MIN_NUMBER_OF_CLOUDS = 3;
   private int numberOfClouds;
   private static final StringBuilder STRING_BUILDER = new StringBuilder();
@@ -119,9 +119,14 @@ class Game extends Pane implements Updatable{
     game.start();
   }
   public void update(){
+//    if(gameClouds.getListSize() >= MIN_NUMBER_OF_CLOUDS &&
+//        shouldCloudBeGenerated()){
+//      Cloud gameCloud = new Cloud();
+//      gameClouds.addCloudToList(gameCloud);
+//    }
     for (Cloud cloud : gameClouds) {
       if(cloud.isFullnessOverX(30)) {
-        if(elapsedTime - pastTime > 1.0 && fireEventInActive) {
+        if(elapsedTime - pastTime > 1.5 && fireEventInActive) {
           pastTime = elapsedTime;
           cloud.decay();
         }
@@ -133,8 +138,24 @@ class Game extends Pane implements Updatable{
         }
       }
       cloud.update();
+      if(isCloudOffScreen(cloud)){
+        cloud.getState().toggleState(cloud);
+      }
+    }
+    for (Cloud cloud : gameClouds) {
+      if(cloud.getState().toString().equals("OffScreenRight") ){
+        createClouds();
+      }else{
+        gameClouds.removeCloudFromList(cloud);
+        cloud.getState().destroyCloud(cloud);
+      }
     }
     gameHelicopter.update();
+//    if(gameClouds.getListSize() < 5){
+//      if(shouldCloudBeGenerated()){
+//        for(int i = 0; i < )
+//      }
+//    }
   }
   void instantiateGameObjects(){
     numberOfClouds = RAND.nextInt(
@@ -149,7 +170,7 @@ class Game extends Pane implements Updatable{
       Pond gamePond = new Pond();
       gamePonds.addPondToList(gamePond);
     }
-    for(int i = 0; i < numberOfClouds; i++){
+    for(int i = 0; i <= numberOfClouds; i++){
       Cloud gameCloud = new Cloud();
       gameClouds.addCloudToList(gameCloud);
     }
@@ -232,6 +253,31 @@ class Game extends Pane implements Updatable{
 
     return cloud.getCloudDiameter() * 2.5 > distance;
   }
+  boolean shouldCloudBeGenerated(){
+    if(gameClouds.getListSize() >= MIN_NUMBER_OF_CLOUDS &&
+        gameClouds.getListSize() < MAX_NUMBER_OF_CLOUDS){
+      return RAND.nextBoolean();
+    }else{
+     return false;
+    }
+  }
+  int numberOfCloudsGenerated(int numberOfClouds){
+    if(gameClouds.getListSize() < 5) {
+      return RAND.nextInt(
+          MAX_NUMBER_OF_CLOUDS - numberOfClouds) + numberOfClouds;
+    }
+    return -1;
+  }
+  void createClouds(){
+    for(int i = 0; i <= numberOfCloudsGenerated(gameClouds.getListSize());
+        i++){
+      Cloud gameCloud = new Cloud();
+      gameClouds.addCloudToList(gameCloud);
+    }
+  }
+  boolean isCloudOffScreen(Cloud cloud){
+    return cloud.getTranslateX() - cloud.getCloudWidth() > GameApp.getGameWidth();
+  }
 }
 abstract class GameObject extends Group {
   public GameObject(){
@@ -244,7 +290,7 @@ class Pond extends GameObject implements Updatable{
   private static final int INITIAL_POND_MIN = 10;
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
-  private static final int OFFSET = GAME_HEIGHT / 4;
+  private static final int OFFSET = GAME_HEIGHT / 10;
   private Circle c;
   private double pondRadius = 0;
   private Text pondText;
@@ -339,7 +385,7 @@ class Cloud extends GameObject implements Updatable{
   private static final int CLOUD_WIDTH = 50;
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
-  private static final int OFFSET = GAME_HEIGHT / 4;
+  private static final int OFFSET = GAME_HEIGHT / 10;
   private static final int RANDOM_MAX_W = GAME_WIDTH - CLOUD_WIDTH;
   private static final int RANDOM_MAX_H = GAME_HEIGHT - CLOUD_WIDTH;
   private static final int RANDOM_MIN_H = OFFSET + CLOUD_WIDTH;
@@ -350,16 +396,16 @@ class Cloud extends GameObject implements Updatable{
   private Text cloudText;
   private Circle c;
   private static final Random RAND = new Random();
-  private Point2D initialCloudPosition;
+  private Point2D CloudPosition;
   private static final double WIND_SPEED = 1;
-  private final double cloudSpeed = WIND_SPEED * abs(RAND.nextGaussian());
+  private double cloudSpeed = WIND_SPEED * abs(RAND.nextGaussian(.4,.7));
+  private CloudState cloudState = new OnScreen();
+  private AnimationTimer moveCloud;
+  private double elapsedTime = 0;
 
   public Cloud(){
     cloudText = new Text();
     c = new Circle();
-    initialCloudPosition = new Point2D(RAND.nextInt
-        (RANDOM_MAX_W - CLOUD_WIDTH) + CLOUD_WIDTH, RAND.nextInt
-        (RANDOM_MAX_H - RANDOM_MIN_H) + RANDOM_MIN_H);
 
     cloudText.setScaleY(-1);
     cloudText.setText(String.format("%4d", cloudFullness));
@@ -368,11 +414,9 @@ class Cloud extends GameObject implements Updatable{
     c.setFill(Color.WHITE);
     c.setRadius(CLOUD_WIDTH);
     c.setOpacity(CLOUD_OPACITY);
-    this.setTranslateX(initialCloudPosition.getX());
-    this.setTranslateY(initialCloudPosition.getY());
-    this.getChildren().addAll(c, cloudText);
 
-
+    repositionCloud();
+    moveCloud(this);
   }
   public void update(){
     cloudText.setText(String.format("%4d", cloudFullness));
@@ -398,53 +442,153 @@ class Cloud extends GameObject implements Updatable{
   double getSpeed(){
     return cloudSpeed;
   }
+  double getCloudWidth(){
+    return CLOUD_WIDTH;
+  }
+  CloudState getState() {
+    return cloudState;
+  }
+  void setState(CloudState state) {
+    this.cloudState = state;
+  }
+//  void positionCloud() {
+//    CloudPosition = new Point2D(RAND.nextInt
+//        (RANDOM_MAX_W - CLOUD_WIDTH) + CLOUD_WIDTH, RAND.nextInt
+//        (RANDOM_MAX_H - RANDOM_MIN_H) + RANDOM_MIN_H);
+//
+//    this.setTranslateX(CloudPosition.getX());
+//    this.setTranslateY(CloudPosition.getY());
+//
+//  }
+  void repositionCloud(){
+    CloudPosition = new Point2D(-CLOUD_WIDTH, RAND.nextInt
+        (RANDOM_MAX_H - RANDOM_MIN_H) + RANDOM_MIN_H);
+    this.setTranslateX(CloudPosition.getX());
+    this.setTranslateY(CloudPosition.getY());
 
-}
-
-interface CloudState{
-  String toString();
-  void offScreenLeft();
-  void offScreenRight();
-}
-
-class Clouds extends GameObject implements Iterable<Cloud>{
-  private List cloudList;
-  private AnimationTimer moveCloud;
-  private double elapsedTime = 0;
-  public Clouds(){
-    cloudList = new LinkedList<>();
+    cloudSpeed = WIND_SPEED * abs(RAND.nextGaussian());
+    cloudFullness = 0;
+    this.getChildren().addAll(c, cloudText);
   }
-  void addCloudToList(Cloud c) {
-    cloudList.add(c);
-    this.getChildren().add(c);
-    moveCloud(c);
-  }
-  int getListSize(){
-    return cloudList.size();
-  }
-  boolean isIntersect(Pond pond1, Pond pond2){
-    return pond1.getBoundsInParent().intersects(pond2.getBoundsInParent());
-  }
-  @Override
-  public Iterator<Cloud> iterator() {
-    return cloudList.iterator();
-  }
-  void moveCloud(Cloud c){
+  void moveCloud(Cloud cloud){
     moveCloud = new AnimationTimer() {
       private double old = -1;
-
       @Override
       public void handle(long now) {
         if (old < 0) old = now;
         double delta = (now - old) / 1e9;
         old = now;
         elapsedTime += delta;
-        c.setTranslateX(c.getTranslateX() + c.getSpeed());
-        System.out.println(c.getSpeed());
+        cloud.setTranslateX(cloud.getTranslateX() + cloudSpeed);
       }
     };
     moveCloud.start();
   }
+  void destroyCloud(){
+    moveCloud.stop();
+    this.getChildren().remove(this);
+  }
+}
+
+interface CloudState{
+  void toggleState(Cloud cloud);
+  String toString();
+  void repositionCloud(Cloud cloud);
+  void destroyCloud(Cloud cloud);
+
+}
+
+//class OffScreenLeft implements CloudState{
+//  @Override
+//  public void toggleState(Cloud cloud) {
+//    cloud.setState(new OnScreen());
+//  }
+//  @Override
+//  public void repositionCloud(Cloud cloud) {}
+//  @Override
+//  public void introduceNewCloud() {}
+//  @Override
+//  public String toString(){
+//    return "OffScreenLeft";
+//  }
+//}
+class OnScreen implements CloudState{
+  @Override
+  public void toggleState(Cloud cloud) {
+    cloud.setState(new OffScreenRight());
+  }
+  @Override
+  public String toString(){
+    return "OnScreen";
+  }
+  @Override
+  public void repositionCloud(Cloud cloud) {}
+  @Override
+  public void destroyCloud(Cloud cloud) {}
+}
+class OffScreenRight implements CloudState{
+  @Override
+  public void toggleState(Cloud cloud) {
+    cloud.setState(new OnScreen());
+  }
+  @Override
+  public void repositionCloud(Cloud cloud) {
+    cloud.repositionCloud();
+    cloud.setState(new OnScreen());
+  }
+  @Override
+  public void destroyCloud(Cloud cloud) {
+    cloud.destroyCloud();
+  }
+  @Override
+  public String toString(){
+    return "OffScreenRight";
+  }
+}
+
+class Clouds extends GameObject implements Iterable<Cloud>{
+  private static List cloudList;
+  private AnimationTimer moveCloud;
+  private double elapsedTime = 0;
+  public Clouds(){
+    cloudList = new LinkedList<>();
+  }
+  void addCloudToList(Cloud cloud) {
+    cloudList.add(cloud);
+    this.getChildren().add(cloud);
+    //moveClouds(cloud);
+  }
+  void removeCloudFromList(Cloud cloud){
+    cloudList.remove(cloud);
+    this.getChildren().remove(cloud);
+  }
+  static int getListSize(){
+    return cloudList.size();
+  }
+  boolean isIntersect(Pond pond1, Pond pond2){
+    return pond1.getBoundsInParent().intersects(pond2.getBoundsInParent());
+  }
+
+  @Override
+  public Iterator<Cloud> iterator() {
+    return cloudList.iterator();
+  }
+//  void moveClouds(Cloud cloud){
+//    moveCloud = new AnimationTimer() {
+//      private double old = -1;
+//
+//      @Override
+//      public void handle(long now) {
+//        if (old < 0) old = now;
+//        double delta = (now - old) / 1e9;
+//        old = now;
+//        elapsedTime += delta;
+//        cloud.setTranslateX(cloud.getTranslateX() + cloud.getSpeed());
+//      }
+//    };
+//    moveCloud.start();
+//  }
+
 }
 
 class Helipad extends GameObject {
