@@ -145,11 +145,6 @@ class Game extends Pane implements Updatable{
     cloudListInUse = !cloudListInUse;
     gameHelicopter.update();
     shouldCloudBeGenerated();
-//    if(gameClouds.getListSize() < 5){
-//      if(shouldCloudBeGenerated()){
-//        for(int i = 0; i < )
-//      }
-//    }
   }
   void instantiateGameObjects(){
     initialNumberOfClouds = RAND.nextInt(
@@ -165,13 +160,19 @@ class Game extends Pane implements Updatable{
       gamePonds.addPondToList(gamePond);
     }
     for(int i = 0; i <= initialNumberOfClouds; i++){
-      makeNewCloud();
+      makeNewOffScreenCloud();
     }
     this.getChildren().addAll(gamePonds,gameClouds,gameHelipad,
         gameHelicopter);
   }
-  void makeNewCloud(){
+  void makeNewOffScreenCloud(){
     Cloud gameCloud = new Cloud();
+    gameClouds.addCloudToList(gameCloud);
+    numberOfCloudsOnScreen++;
+  }
+  void makeNewOnScreenCloud(){
+    Cloud gameCloud = new Cloud();
+    gameCloud.repositionCloud();
     gameClouds.addCloudToList(gameCloud);
     numberOfCloudsOnScreen++;
   }
@@ -252,17 +253,16 @@ class Game extends Pane implements Updatable{
     return cloud.getCloudDiameter() * 2.5 > distance;
   }
   void shouldCloudBeGenerated(){
-    int randomNumber;
-    if(numberOfCloudsOnScreen < MAX_NUMBER_OF_CLOUDS) {
-      randomNumber = RAND.nextInt(1000);
-      if (randomNumber < 2 && gameClouds.getListSize() < MAX_NUMBER_OF_CLOUDS) {
-        createClouds();
+    int randomNumber = RAND.nextInt(500);
+    if(numberOfCloudsOnScreen < MAX_NUMBER_OF_CLOUDS && randomNumber < 2) {
+      if (gameClouds.getListSize() < MAX_NUMBER_OF_CLOUDS) {
+        makeNewOnScreenCloud();
       }
       else{
         for(Cloud cloud : gameClouds) {
           if(cloud.getState().toString().equals("OffScreenRight")){
             cloud.getState().repositionCloud(cloud);
-            System.out.println("I'm here");
+            System.out.println(randomNumber);
             break;
           }
         }
@@ -275,12 +275,6 @@ class Game extends Pane implements Updatable{
           MAX_NUMBER_OF_CLOUDS - numberOfClouds) + numberOfClouds;
     }
     return -1;
-  }
-  void createClouds(){
-    for(int i = 0; i <= numberOfCloudsGenerated(gameClouds.getListSize());
-        i++){
-      makeNewCloud();
-    }
   }
   boolean isCloudOffScreen(Cloud cloud){
     return cloud.getTranslateX() - cloud.getCloudWidth() > GameApp.getGameWidth();
@@ -654,10 +648,6 @@ class Clouds extends GameObject implements Iterable<Cloud>{
   int getListSize(){
     return cloudList.size();
   }
-  boolean isIntersect(Pond pond1, Pond pond2){
-    return pond1.getBoundsInParent().intersects(pond2.getBoundsInParent());
-  }
-
   @Override
   public Iterator<Cloud> iterator() {
     return cloudList.iterator();
