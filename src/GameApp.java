@@ -26,18 +26,9 @@ public class GameApp extends Application {
   private static final int GAME_WIDTH = 800;
   private static final Point2D size = new Point2D(GAME_WIDTH, GAME_HEIGHT);
 
-  private Game newGame;
-
   public void start(Stage stage) {
-    //Image is taken from https://www.vectorstock.com/
-    //Artist alexzel
-    //All credit and rights belong to vectorstock and alexzel
-    File backgroundFile = new File("Images/background3.jpg");
-    Image backgroundImage = new Image(backgroundFile.toURI().toString());
-    ImagePattern backgroundPattern = new ImagePattern(backgroundImage);
-    newGame = new Game(backgroundImage);
-    Scene scene = new Scene(newGame, size.getX(), size.getY());
-    scene.setFill(backgroundPattern);
+
+    Scene scene = new Scene(Game.getInstance(), size.getX(), size.getY());
     scene.setOnKeyPressed(this::setOnKeyPressed);
 
 
@@ -47,19 +38,19 @@ public class GameApp extends Application {
   }
   private void setOnKeyPressed(KeyEvent e){
     switch (e.getCode()){
-      case  LEFT: newGame.headLeft();
+      case  LEFT: Game.getInstance().headLeft();
             break;
-      case  RIGHT: newGame.headRight();
+      case  RIGHT: Game.getInstance().headRight();
             break;
-      case  UP: newGame.increaseSpeed();
+      case  UP: Game.getInstance().increaseSpeed();
             break;
-      case  DOWN: newGame.decreaseSpeed();
+      case  DOWN: Game.getInstance().decreaseSpeed();
             break;
-      case  I:  newGame.flipIgnition();
+      case  I:  Game.getInstance().flipIgnition();
             break;
-      case  R: newGame.hardRestart();
+      case  R: Game.getInstance().hardRestart();
             break;
-      case  SPACE: newGame.fireEvent();
+      case  SPACE: Game.getInstance().fireEvent();
             break;
     }
   }
@@ -78,7 +69,7 @@ class Game extends Pane implements Updatable{
   private static double elapsedTime = 0;
   private static double pastTime = 0;
   private static boolean fireEventInActive = true;
-  private static final int INITIAL_FUEL = 25000;
+  private static final int INITIAL_FUEL = 500;
   private Helipad gameHelipad;
   private Helicopter gameHelicopter;
   private AnimationTimer game;
@@ -91,7 +82,21 @@ class Game extends Pane implements Updatable{
   private static int numberOfCloudsOnScreen = 0;
   private static final StringBuilder STRING_BUILDER = new StringBuilder();
   private static Alert alert;
-  public Game(Image backgroundImage){
+  private static Game gameInstance;
+  public static synchronized Game getInstance(){
+    if (gameInstance == null){
+      gameInstance = new Game();
+    }
+    return gameInstance;
+  }
+  public Game(){
+    //Image is taken from https://www.vectorstock.com/
+    //Artist alexzel
+    //All credit and rights belong to vectorstock and alexzel
+    File backgroundFile = new File("Images/background3.jpg");
+    Image backgroundImage = new Image(backgroundFile.toURI().toString());
+    ImagePattern backgroundPattern = new ImagePattern(backgroundImage);
+
     BackgroundImage paneBackground = new BackgroundImage(backgroundImage,
         BackgroundRepeat.NO_REPEAT,
         BackgroundRepeat.NO_REPEAT,
@@ -395,21 +400,34 @@ class BezierOval extends Group{
   private final int minRadius = 40;
   private final int minorMaxRadius = 25;
   private final int minorMinRadius = 20;
-  private final double maxThetaChange = PI / 2;
-  private final double minThetaChange = PI / 3;
+  private final double maxThetaChange = PI / 3;
+  private final double minThetaChange = PI / 4;
   private final int majorRadius =
       RAND.nextInt(maxRadius - minRadius) + minRadius;
   private final int minorRadius =
       RAND.nextInt(minorMaxRadius - minorMinRadius) + minorMinRadius;
   private double randomThetaIncrease =
       RAND.nextDouble(maxThetaChange - minThetaChange) + minThetaChange;
-
+  private List<QuadCurve> bezierCurveList;
   public BezierOval(){
+    ellipse = new Ellipse(majorRadius, minorRadius);
+    bezierCurveList = new LinkedList<QuadCurve>();
+    generateBezierCurve();
+    this.getChildren().add(ellipse);
+  }
+  void setFill(Color color){
+    for (QuadCurve bezierCurve : bezierCurveList) {
+      bezierCurve.setFill(color);
+    }
+    ellipse.setFill(color);
+//    for ((Shape) Node obj : this.getChildren() ) {
+//      set color of all the bezier curve
+//    }
+  }
+  void generateBezierCurve(){
     double startPointX = majorRadius * cos(initailTheta);
     double startPointY = minorRadius * sin(initailTheta);
-    ellipse = new Ellipse(majorRadius, minorRadius);
     startPoint = new Point2D(startPointX, startPointY);
-
     while(currentTheta < initailTheta + (2 * PI)){
       double lastTheta = currentTheta;
       //randomize the currentTheta
@@ -438,15 +456,8 @@ class BezierOval extends Group{
       bezierCurve.setFill(Color.WHITE);
       bezierCurve.setStroke(Color.BLACK);
       this.getChildren().add(bezierCurve);
+      bezierCurveList.add(bezierCurve);
     }
-    this.getChildren().add(ellipse);
-  }
-  void setFill(Color color){
-    ellipse.setFill(color);
-//    for ((Shape) Node obj : this.getChildren() ) {
-//      set color of all the bezier curve
-//    }
-
   }
 }
 
@@ -482,7 +493,6 @@ class Cloud extends GameObject implements Updatable{
     cloudText.setFill(Color.BLACK);
 
     c.setFill(Color.WHITE);
-    //c.setRadius(CLOUD_WIDTH);
     c.setOpacity(CLOUD_OPACITY);
 
     positionCloud();
