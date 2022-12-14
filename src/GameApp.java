@@ -11,8 +11,7 @@ import javafx.scene.image.ImageView;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
 import javafx.scene.paint.ImagePattern;
-import javafx.scene.shape.Circle;
-import javafx.scene.shape.Rectangle;
+import javafx.scene.shape.*;
 import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 import javafx.stage.Stage;
@@ -20,8 +19,7 @@ import javafx.scene.input.KeyEvent;
 import java.io.File;
 import java.util.*;
 
-import static java.lang.Math.abs;
-import static java.lang.Math.toRadians;
+import static java.lang.Math.*;
 
 public class GameApp extends Application {
   private static final int GAME_HEIGHT = 800;
@@ -86,11 +84,9 @@ class Game extends Pane implements Updatable{
   private AnimationTimer game;
   private Ponds gamePonds;
   private Clouds gameClouds;
-  private int initialNumberOfClouds;
-
   private static boolean cloudListInUse = true;
   private static final Random RAND = new Random();
-  private static final int MAX_NUMBER_OF_CLOUDS = 5;
+  private static final int MAX_NUMBER_OF_CLOUDS = 6;
   private static final int MIN_NUMBER_OF_CLOUDS = 3;
   private static int numberOfCloudsOnScreen = 0;
   private static final StringBuilder STRING_BUILDER = new StringBuilder();
@@ -125,10 +121,10 @@ class Game extends Pane implements Updatable{
   public void update(){
     for (Cloud cloud : gameClouds) {
       if(cloud.isFullnessOverX(30)) {
-        if(elapsedTime - pastTime > 1.5 && fireEventInActive) {
-          pastTime = elapsedTime;
-          cloud.decay();
-        }
+//        if(elapsedTime - pastTime > 1.5 && fireEventInActive) {
+//          pastTime = elapsedTime;
+//          cloud.decay();
+//        }
         for(Pond pond : gamePonds) {
           if(pond.isPondRadiusUnderX(100) && isCloudNearPond(cloud,
             pond)){
@@ -141,14 +137,16 @@ class Game extends Pane implements Updatable{
         cloud.getState().toggleState(cloud);
         numberOfCloudsOnScreen--;
       }
+
     }
     cloudListInUse = !cloudListInUse;
     gameHelicopter.update();
     shouldCloudBeGenerated();
   }
   void instantiateGameObjects(){
-    initialNumberOfClouds = RAND.nextInt(
+    int initialNumberOfClouds = RAND.nextInt(
         MAX_NUMBER_OF_CLOUDS - MIN_NUMBER_OF_CLOUDS) + MIN_NUMBER_OF_CLOUDS;
+    System.out.println(initialNumberOfClouds);
 
     gamePonds = new Ponds();
     gameClouds = new Clouds();
@@ -159,7 +157,7 @@ class Game extends Pane implements Updatable{
       Pond gamePond = new Pond();
       gamePonds.addPondToList(gamePond);
     }
-    for(int i = 0; i <= initialNumberOfClouds; i++){
+    for(int i = 0; i < initialNumberOfClouds; i++){
       makeNewOffScreenCloud();
     }
     this.getChildren().addAll(gamePonds,gameClouds,gameHelipad,
@@ -205,7 +203,8 @@ class Game extends Pane implements Updatable{
     fireEventInActive = !fireEventInActive;
   }
    void gameWinLoseRestart(){
-    if(gamePonds.isFullnessOfAllPondsOverX(80) || gameHelicopter.getFuel() <= 0 ){
+    if(gamePonds.isFullnessOfAllPondsOverX(80) || gameHelicopter.getFuel()
+        < 1 ){
       game.stop();
       if(gamePonds.isFullnessOfAllPondsOverX(80) && isIntersect(gameHelicopter,
           gameHelipad) && gameHelicopter.getHelicopterStateName().equals(
@@ -253,7 +252,7 @@ class Game extends Pane implements Updatable{
     return cloud.getCloudDiameter() * 2.5 > distance;
   }
   void shouldCloudBeGenerated(){
-    int randomNumber = RAND.nextInt(500);
+    int randomNumber = RAND.nextInt(200);
     if(numberOfCloudsOnScreen < MAX_NUMBER_OF_CLOUDS && randomNumber < 2) {
       if (gameClouds.getListSize() < MAX_NUMBER_OF_CLOUDS) {
         makeNewOnScreenCloud();
@@ -269,19 +268,20 @@ class Game extends Pane implements Updatable{
       }
     }
   }
-  int numberOfCloudsGenerated(int numberOfClouds){
-    if(gameClouds.getListSize() < 5) {
-      return RAND.nextInt(
-          MAX_NUMBER_OF_CLOUDS - numberOfClouds) + numberOfClouds;
-    }
-    return -1;
-  }
   boolean isCloudOffScreen(Cloud cloud){
-    return cloud.getTranslateX() - cloud.getCloudWidth() > GameApp.getGameWidth();
+    return cloud.getTranslateX() - cloud.getCloudWidth() >
+        GameApp.getGameWidth();
+  }
+  static boolean getFireEvent() {
+    return fireEventInActive;
   }
 }
 abstract class GameObject extends Group {
+  private static final Random RAND = new Random();
   public GameObject(){
+  }
+  double getRandomNumberWithinRange(int max, int min){
+    return RAND.nextInt(max - min) + min;
   }
 }
 
@@ -381,6 +381,74 @@ class Ponds extends GameObject implements Iterable<Pond> {
   }
 }
 
+class BezierOval extends Group{
+  private static final Random RAND = new Random();
+  private Ellipse ellipse;
+  private QuadCurve bezierCurve;
+  private double initailTheta = 0;
+  private double currentTheta = initailTheta;
+  private Point2D startPoint;
+  private Point2D endPoint;
+  private Point2D controlPoint;
+  private double radiusFactor = RAND.nextDouble(2 + 1.5) + 1.5;
+  private final int maxRadius = 50;
+  private final int minRadius = 40;
+  private final int minorMaxRadius = 25;
+  private final int minorMinRadius = 20;
+  private final double maxThetaChange = PI / 2;
+  private final double minThetaChange = PI / 3;
+  private final int majorRadius =
+      RAND.nextInt(maxRadius - minRadius) + minRadius;
+  private final int minorRadius =
+      RAND.nextInt(minorMaxRadius - minorMinRadius) + minorMinRadius;
+  private double randomThetaIncrease =
+      RAND.nextDouble(maxThetaChange - minThetaChange) + minThetaChange;
+
+  public BezierOval(){
+    double startPointX = majorRadius * cos(initailTheta);
+    double startPointY = minorRadius * sin(initailTheta);
+    ellipse = new Ellipse(majorRadius, minorRadius);
+    startPoint = new Point2D(startPointX, startPointY);
+
+    while(currentTheta < initailTheta + (2 * PI)){
+      double lastTheta = currentTheta;
+      //randomize the currentTheta
+      //Could create a theta larger than the oval. Set a ceiling for
+      // currentTheta and a floor
+//      if((2 * PI) - currentTheta < maxThetaChange){
+//        break;
+//      }
+      currentTheta += randomThetaIncrease;
+      double radiusFactor = RAND.nextDouble(2 - 1.5) + 1.5;
+
+      double cx =
+          majorRadius * cos((lastTheta + currentTheta) /2) * radiusFactor;
+      double cy = minorRadius * sin((lastTheta + currentTheta) /2) * radiusFactor;
+
+      //radiusFractor needs to be randomized
+      controlPoint = new Point2D(cx, cy);
+
+      startPointX = majorRadius * cos(currentTheta);
+      startPointY = minorRadius * sin(currentTheta);
+      endPoint = new Point2D(startPointX, startPointY);
+      bezierCurve = new QuadCurve(startPoint.getX(), startPoint.getY(),
+          controlPoint.getX(), controlPoint.getY(), endPoint.getX(),
+          endPoint.getY());
+      startPoint = endPoint;
+      bezierCurve.setFill(Color.WHITE);
+      bezierCurve.setStroke(Color.BLACK);
+      this.getChildren().add(bezierCurve);
+    }
+    this.getChildren().add(ellipse);
+  }
+  void setFill(Color color){
+    ellipse.setFill(color);
+//    for ((Shape) Node obj : this.getChildren() ) {
+//      set color of all the bezier curve
+//    }
+
+  }
+}
 
 class Cloud extends GameObject implements Updatable{
   private static final int CLOUD_WIDTH = 50;
@@ -395,25 +463,26 @@ class Cloud extends GameObject implements Updatable{
   private int cloudColor = STARTING_COLOR;
   private int cloudFullness = 0;
   private Text cloudText;
-  private Circle c;
+  private BezierOval c;
   private static final Random RAND = new Random();
   private Point2D CloudPosition;
   private static final double WIND_SPEED = 1;
-  private double cloudSpeed = WIND_SPEED * abs(RAND.nextGaussian(.4,.7));
+  private double cloudSpeed = WIND_SPEED * abs(RAND.nextGaussian(.2,.6));
   private CloudState cloudState = new OnScreen();
   private AnimationTimer moveCloud;
   private double elapsedTime = 0;
+  private double pastTime = 0;
 
   public Cloud(){
     cloudText = new Text();
-    c = new Circle();
+    c = new BezierOval();
 
     cloudText.setScaleY(-1);
     cloudText.setText(String.format("%4d", cloudFullness));
     cloudText.setFill(Color.BLACK);
 
     c.setFill(Color.WHITE);
-    c.setRadius(CLOUD_WIDTH);
+    //c.setRadius(CLOUD_WIDTH);
     c.setOpacity(CLOUD_OPACITY);
 
     positionCloud();
@@ -428,11 +497,9 @@ class Cloud extends GameObject implements Updatable{
     c.setFill(Color.rgb(cloudColor, cloudColor, cloudColor));
   }
   void decay(){
-    if(isFullnessOverX(30)){
-      cloudColor = STARTING_COLOR - cloudFullness;
-      cloudFullness -= 1;
-      c.setFill(Color.rgb(cloudColor,cloudColor, cloudColor));
-    }
+    cloudColor = STARTING_COLOR - cloudFullness;
+    cloudFullness -= 1;
+    c.setFill(Color.rgb(cloudColor,cloudColor, cloudColor));
   }
   boolean isFullnessOverX(double x){
     return cloudFullness >= x;
@@ -469,6 +536,7 @@ class Cloud extends GameObject implements Updatable{
 
     cloudSpeed = WIND_SPEED * abs(RAND.nextGaussian());
     cloudFullness = 0;
+    c.setFill(Color.WHITE);
   }
   void moveCloud(Cloud cloud){
     moveCloud = new AnimationTimer() {
@@ -480,6 +548,11 @@ class Cloud extends GameObject implements Updatable{
         old = now;
         elapsedTime += delta;
         cloud.setTranslateX(cloud.getTranslateX() + cloudSpeed);
+        if(isFullnessOverX(30) && Game.getFireEvent() &&
+            elapsedTime - pastTime > 1.5){
+          pastTime = elapsedTime;
+          decay();
+        }
       }
     };
     moveCloud.start();
@@ -652,22 +725,6 @@ class Clouds extends GameObject implements Iterable<Cloud>{
   public Iterator<Cloud> iterator() {
     return cloudList.iterator();
   }
-//  void moveClouds(Cloud cloud){
-//    moveCloud = new AnimationTimer() {
-//      private double old = -1;
-//
-//      @Override
-//      public void handle(long now) {
-//        if (old < 0) old = now;
-//        double delta = (now - old) / 1e9;
-//        old = now;
-//        elapsedTime += delta;
-//        cloud.setTranslateX(cloud.getTranslateX() + cloud.getSpeed());
-//      }
-//    };
-//    moveCloud.start();
-//  }
-
 }
 
 class Helipad extends GameObject {
