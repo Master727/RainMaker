@@ -11,7 +11,7 @@ import java.util.Random;
 
 import static java.lang.Math.abs;
 
-public class Cloud extends GameObject implements Updatable {
+public class Cloud extends GameObject implements Updatable, Observer {
   private static final int CLOUD_WIDTH = 50;
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
@@ -21,20 +21,21 @@ public class Cloud extends GameObject implements Updatable {
   private static final int RANDOM_MIN_H = OFFSET + CLOUD_WIDTH;
   private static final int STARTING_COLOR = 255;
   private static final double CLOUD_OPACITY = .7;
+  private static final double MAX_CLOUD_SPEED = 1.2;
   private int cloudColor = STARTING_COLOR;
   private int cloudFullness = 0;
   private Text cloudText;
   private BezierOval c;
   private static final Random RAND = new Random();
   private Point2D cloudPosition;
-  private static final double WIND_SPEED = 1;
-  private double cloudSpeed = WIND_SPEED * abs(RAND.nextGaussian(.2, .6));
+  private double cloudSpeed;
+  private double cloudSpeedOffset = RAND.nextGaussian(.1, .3);
   private CloudState cloudState = new OnScreen();
   private AnimationTimer moveCloud;
   private double elapsedTime = 0;
   private double pastTime = 0;
 
-  public Cloud() {
+  public Cloud(double windSpeed) {
     cloudText = new Text();
     c = new BezierOval();
 
@@ -44,6 +45,8 @@ public class Cloud extends GameObject implements Updatable {
 
     c.setFill(Color.WHITE);
     c.setOpacity(CLOUD_OPACITY);
+
+    cloudSpeed = abs(windSpeed + cloudSpeedOffset);
 
     positionCloud();
     moveCloud(this);
@@ -71,10 +74,6 @@ public class Cloud extends GameObject implements Updatable {
 
   public double getCloudDiameter() {
     return CLOUD_WIDTH * 2;
-  }
-
-  double getSpeed() {
-    return cloudSpeed;
   }
 
   public double getCloudWidth() {
@@ -105,7 +104,9 @@ public class Cloud extends GameObject implements Updatable {
     this.setTranslateX(cloudPosition.getX());
     this.setTranslateY(cloudPosition.getY());
 
-    cloudSpeed = WIND_SPEED * abs(RAND.nextGaussian());
+    cloudSpeed -= cloudSpeedOffset;
+    getCloudSpeedOffset();
+    cloudSpeed += cloudSpeedOffset;
     cloudFullness = 0;
     c.setFill(Color.WHITE);
   }
@@ -129,5 +130,14 @@ public class Cloud extends GameObject implements Updatable {
       }
     };
     moveCloud.start();
+  }
+  void getCloudSpeedOffset(){
+    if(cloudSpeed < MAX_CLOUD_SPEED){
+      cloudSpeedOffset = RAND.nextGaussian(.1, .3);
+    }
+  }
+  @Override
+  public void updateWindSpeed(double newWindSpeed) {
+    cloudSpeed = newWindSpeed + cloudSpeedOffset;
   }
 }

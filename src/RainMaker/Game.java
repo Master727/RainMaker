@@ -22,13 +22,15 @@ public class Game extends Pane implements Updatable {
   private AnimationTimer game;
   private Ponds gamePonds;
   private Clouds gameClouds;
+  private Wind gameWind;
   private static final Random RAND = new Random();
   private static final int MAX_NUMBER_OF_CLOUDS = 6;
   private static final int MIN_NUMBER_OF_CLOUDS = 3;
   private static int numberOfCloudsOnScreen = 0;
-  private static final StringBuilder STRING_BUILDER = new StringBuilder();
+  private static final StringBuilder GAME_OVER_STRING_BUILDER = new StringBuilder();
   private static Alert alert;
   private static Game gameInstance;
+  private double randomTime;
 
   public static synchronized Game getInstance() {
     if (gameInstance == null) {
@@ -77,10 +79,6 @@ public class Game extends Pane implements Updatable {
   public void update() {
     for (Cloud cloud : gameClouds) {
       if (cloud.isFullnessOverX(30)) {
-//        if(elapsedTime - pastTime > 1.5 && fireEventInActive) {
-//          pastTime = elapsedTime;
-//          cloud.decay();
-//        }
         for (Pond pond : gamePonds) {
           if (pond.isPondRadiusUnderX(100) && isCloudNearPond(cloud,
               pond)) {
@@ -97,18 +95,28 @@ public class Game extends Pane implements Updatable {
     }
     gameHelicopter.update();
     shouldCloudBeGenerated();
+    shouldWindSpeedChange();
+  }
+
+  void shouldWindSpeedChange() {
+    randomTime = RAND.nextDouble(20 - 5) + 5;
+    if(elapsedTime - pastTime > randomTime) {
+      pastTime = elapsedTime;
+      gameWind.notifyNewWindSpeed();
+      gameWind.update();
+    }
   }
 
   void instantiateGameObjects() {
     int initialNumberOfClouds = RAND.nextInt(
         MAX_NUMBER_OF_CLOUDS - MIN_NUMBER_OF_CLOUDS) + MIN_NUMBER_OF_CLOUDS;
-    System.out.println(initialNumberOfClouds);
 
     gamePonds = new Ponds();
     gameClouds = new Clouds();
 
     gameHelipad = new Helipad();
     gameHelicopter = new Helicopter(INITIAL_FUEL);
+    gameWind = new Wind();
     for (int i = 0; i < 3; i++) {
       Pond gamePond = new Pond();
       gamePonds.addPondToList(gamePond);
@@ -117,17 +125,18 @@ public class Game extends Pane implements Updatable {
       makeNewOffScreenCloud();
     }
     this.getChildren().addAll(gamePonds, gameClouds, gameHelipad,
-        gameHelicopter);
+        gameHelicopter, gameWind);
   }
 
   void makeNewOffScreenCloud() {
-    Cloud gameCloud = new Cloud();
+    Cloud gameCloud = new Cloud(gameWind.getWindSpeed());
     gameClouds.addCloudToList(gameCloud);
     numberOfCloudsOnScreen++;
+    gameWind.attach(gameCloud);
   }
 
   void makeNewOnScreenCloud() {
-    Cloud gameCloud = new Cloud();
+    Cloud gameCloud = new Cloud(gameWind.getWindSpeed());
     gameCloud.repositionCloud();
     gameClouds.addCloudToList(gameCloud);
     numberOfCloudsOnScreen++;
@@ -181,7 +190,7 @@ public class Game extends Pane implements Updatable {
         addText("Your helicopter has run out of fuel. " +
             "Would you like to try again?");
       }
-      alert = new Alert(Alert.AlertType.CONFIRMATION, STRING_BUILDER.toString(),
+      alert = new Alert(Alert.AlertType.CONFIRMATION, GAME_OVER_STRING_BUILDER.toString(),
           ButtonType.YES, ButtonType.NO);
       alert.setOnHidden(evt -> {
         if (alert.getResult() == ButtonType.YES) {
@@ -203,8 +212,8 @@ public class Game extends Pane implements Updatable {
   }
 
   void addText(String s) {
-    STRING_BUILDER.setLength(0);
-    STRING_BUILDER.append(s);
+    GAME_OVER_STRING_BUILDER.setLength(0);
+    GAME_OVER_STRING_BUILDER.append(s);
   }
 
   boolean isIntersect(GameObject object1, GameObject object2) {
@@ -228,9 +237,7 @@ public class Game extends Pane implements Updatable {
       } else {
         for (Cloud cloud : gameClouds) {
           if(cloud.getState().toString().equals("OffScreenRight")) {
-            System.out.println(cloud.getState().toString());
             cloud.getState().repositionCloud(cloud);
-            System.out.println(randomNumber);
             break;
           }
         }

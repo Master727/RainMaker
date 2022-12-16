@@ -25,6 +25,9 @@ class GameText extends GameObject {
   void setFill(Color color) {
     text.setFill(color);
   }
+  void setFont(int fontSize){
+    text.setFont(Font.font(fontSize));
+  }
 
   void positionText(double x, double y) {
     text.setTranslateX(x);

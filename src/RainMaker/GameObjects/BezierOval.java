@@ -21,7 +21,6 @@ class BezierOval extends Group {
   private Point2D startPoint;
   private Point2D endPoint;
   private Point2D controlPoint;
-  private double radiusFactor = RAND.nextDouble(2 + 1.5) + 1.5;
   private final int maxRadius = 50;
   private final int minRadius = 40;
   private final int minorMaxRadius = 25;

@@ -2,6 +2,7 @@ package RainMaker.GameObjects;
 
 import RainMaker.GameApp;
 import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
 
 import static java.lang.Math.abs;
 import static java.lang.Math.toRadians;
@@ -53,6 +54,7 @@ public class Helicopter extends GameObject implements Updatable {
     helicopterText.positionText(HELICOPTER_TEXT_POSITION_X,
         HELICOPTER_TEXT_POSITION_Y);
     helicopterText.setText(String.format("%9d", fuel));
+    helicopterText.setFont(15);
     helicopterText.setFill(Color.YELLOW);
 
     helicopterBody.positionHelicopterBody(HELICOPTER_BODY_POSITION_X,
