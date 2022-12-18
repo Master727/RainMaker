@@ -1,19 +1,19 @@
 package RainMaker.GameObjects;
 
-class OffScreenRight implements CloudState {
+class CloudOffScreen implements CloudState {
   @Override
   public void toggleState(Cloud cloud) {
-    cloud.setState(new OnScreen());
+    cloud.setState(new CloudOnScreen());
   }
 
   @Override
   public void repositionCloud(Cloud cloud) {
     cloud.repositionCloud();
-    cloud.setState(new OnScreen());
+    cloud.setState(new CloudOnScreen());
   }
 
   @Override
   public String toString() {
-    return "OffScreenRight";
+    return "OffScreen";
   }
 }

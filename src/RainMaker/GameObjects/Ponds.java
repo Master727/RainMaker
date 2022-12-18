@@ -5,7 +5,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class Ponds extends GameObject implements Iterable<Pond> {
-  private List<Pond> pondList;
+  private final List<Pond> pondList;
 
   public Ponds() {
     pondList = new LinkedList<>();

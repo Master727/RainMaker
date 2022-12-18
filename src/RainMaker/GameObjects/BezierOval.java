@@ -12,15 +12,13 @@ import java.util.Random;
 
 import static java.lang.Math.*;
 
-class BezierOval extends Group {
+class BezierOval extends Group{
   private static final Random RAND = new Random();
-  private Ellipse ellipse;
-  private QuadCurve bezierCurve;
-  private double initailTheta = 0;
-  private double currentTheta = initailTheta;
-  private Point2D startPoint;
-  private Point2D endPoint;
-  private Point2D controlPoint;
+  public static final int RADIUS_FACTOR_MAX = 2;
+  public static final double RADIUS_FACTOR_MIN = 1.5;
+  private final Ellipse ellipse;
+  private final double initialTheta = 0;
+  private double currentTheta = initialTheta;
   private final int maxRadius = 50;
   private final int minRadius = 40;
   private final int minorMaxRadius = 25;
@@ -31,9 +29,9 @@ class BezierOval extends Group {
       RAND.nextInt(maxRadius - minRadius) + minRadius;
   private final int minorRadius =
       RAND.nextInt(minorMaxRadius - minorMinRadius) + minorMinRadius;
-  private double randomThetaIncrease =
+  private final double randomThetaIncrease =
       RAND.nextDouble(maxThetaChange - minThetaChange) + minThetaChange;
-  private List<QuadCurve> bezierCurveList;
+  private final List<QuadCurve> bezierCurveList;
 
   public BezierOval() {
     ellipse = new Ellipse(majorRadius, minorRadius);
@@ -47,37 +45,31 @@ class BezierOval extends Group {
       bezierCurve.setFill(color);
     }
     ellipse.setFill(color);
-//    for ((Shape) Node obj : this.getChildren() ) {
-//      set color of all the bezier curve
-//    }
   }
 
   void generateBezierCurve() {
-    double startPointX = majorRadius * cos(initailTheta);
-    double startPointY = minorRadius * sin(initailTheta);
-    startPoint = new Point2D(startPointX, startPointY);
-    while (currentTheta < initailTheta + (2 * PI)) {
+    double startPointX = majorRadius * cos(initialTheta);
+    double startPointY = minorRadius * sin(initialTheta);
+    Point2D startPoint = new Point2D(startPointX, startPointY);
+    while (currentTheta < initialTheta + (2 * PI)) {
       double lastTheta = currentTheta;
-      //randomize the currentTheta
-      //Could create a theta larger than the oval. Set a ceiling for
-      // currentTheta and a floor
-//      if((2 * PI) - currentTheta < maxThetaChange){
-//        break;
-//      }
       currentTheta += randomThetaIncrease;
-      double radiusFactor = RAND.nextDouble(2 - 1.5) + 1.5;
+      double radiusFactor =
+          RAND.nextDouble(RADIUS_FACTOR_MAX - RADIUS_FACTOR_MIN)
+              + RADIUS_FACTOR_MIN;
 
-      double cx =
+      double controlX =
           majorRadius * cos((lastTheta + currentTheta) / 2) * radiusFactor;
-      double cy = minorRadius * sin((lastTheta + currentTheta) / 2) * radiusFactor;
+      double controlY = minorRadius * sin((lastTheta + currentTheta) / 2)
+          * radiusFactor;
 
       //radiusFractor needs to be randomized
-      controlPoint = new Point2D(cx, cy);
+      Point2D controlPoint = new Point2D(controlX, controlY);
 
       startPointX = majorRadius * cos(currentTheta);
       startPointY = minorRadius * sin(currentTheta);
-      endPoint = new Point2D(startPointX, startPointY);
-      bezierCurve = new QuadCurve(startPoint.getX(), startPoint.getY(),
+      Point2D endPoint = new Point2D(startPointX, startPointY);
+      QuadCurve bezierCurve = new QuadCurve(startPoint.getX(), startPoint.getY(),
           controlPoint.getX(), controlPoint.getY(), endPoint.getX(),
           endPoint.getY());
       startPoint = endPoint;
@@ -86,5 +78,11 @@ class BezierOval extends Group {
       this.getChildren().add(bezierCurve);
       bezierCurveList.add(bezierCurve);
     }
+  }
+  int getBezierWidth(){
+    return majorRadius;
+  }
+  int getBezierHeight(){
+    return minorRadius;
   }
 }

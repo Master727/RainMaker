@@ -15,16 +15,21 @@ public class Pond extends GameObject implements Updatable {
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
   private static final int OFFSET = GAME_HEIGHT / 10;
-  private Circle c;
+  private static final int TEXT_OFFSET_W = 14;
+  private static final int TEXT_OFFSET_H = 5;
+  private final Circle c;
   private double pondRadius = 0;
-  private Text pondText;
-  private Point2D pondPosition;
+  private GameText pondText;
 
   public Pond() {
-    pondText = new Text();
-    pondText.setScaleY(-1);
+    pondText = new GameText();
     pondText.setFill(Color.WHITE);
+
+    c = new Circle();
+    c.setFill(Color.BLUE);
+
     getNewPosition();
+    this.getChildren().addAll(c, pondText);
   }
 
   public void update() {
@@ -49,26 +54,26 @@ public class Pond extends GameObject implements Updatable {
   }
 
   void getNewPosition() {
-    this.getChildren().clear();
-    c = new Circle();
+
     pondRadius = RAND.nextInt(
         INITIAL_POND_MAX - INITIAL_POND_MIN) + INITIAL_POND_MIN;
     int randomMaxH = GAME_HEIGHT - (int) pondRadius;
     int randomMaxW = GAME_WIDTH - (int) pondRadius;
     int randomMinH = OFFSET + (int) pondRadius;
 
-    pondPosition = new Point2D(RAND.nextInt
+    Point2D pondPosition = new Point2D(RAND.nextInt
         (randomMaxW - (int) pondRadius) + pondRadius, RAND.nextInt
         (randomMaxH - randomMinH) + randomMinH);
 
-//    pondText.setTranslateX(pondPosition.getX());
-//    pondText.setTranslateY(pondPosition.getY());
     pondText.setText(String.format("%4d", (int) pondRadius));
 
     c.setFill(Color.BLUE);
     c.setRadius(pondRadius);
-    this.setTranslateX(pondPosition.getX());
-    this.setTranslateY(pondPosition.getY());
-    this.getChildren().addAll(c, pondText);
+    c.setTranslateX(pondPosition.getX());
+    c.setTranslateY(pondPosition.getY());
+
+    pondText.positionText(pondPosition.getX() - TEXT_OFFSET_W,
+        pondPosition.getY() + TEXT_OFFSET_H);
+
   }
 }

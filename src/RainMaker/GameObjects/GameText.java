@@ -5,7 +5,7 @@ import javafx.scene.text.Font;
 import javafx.scene.text.Text;
 
 class GameText extends GameObject {
-  private Text text;
+  private final Text text;
 
   public GameText(String textString) {
     text = new Text(textString);

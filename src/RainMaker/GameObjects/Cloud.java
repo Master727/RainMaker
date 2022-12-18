@@ -5,39 +5,44 @@ import RainMaker.GameApp;
 import javafx.animation.AnimationTimer;
 import javafx.geometry.Point2D;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Text;
 
 import java.util.Random;
 
 import static java.lang.Math.abs;
 
-public class Cloud extends GameObject implements Updatable, Observer {
-  private static final int CLOUD_WIDTH = 50;
+public class Cloud extends TransientGameObjects implements Updatable, Observer{
+  private int cloudWidth;
+  private int cloudHeight;
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
   private static final int OFFSET = GAME_HEIGHT / 10;
-  private static final int RANDOM_MAX_W = GAME_WIDTH - CLOUD_WIDTH;
-  private static final int RANDOM_MAX_H = GAME_HEIGHT - CLOUD_WIDTH;
-  private static final int RANDOM_MIN_H = OFFSET + CLOUD_WIDTH;
+  private int randomMaxW;
+  private int randomMaxH;
+  private int randomMinH;
   private static final int STARTING_COLOR = 255;
   private static final double CLOUD_OPACITY = .7;
   private static final double MAX_CLOUD_SPEED = 1.2;
   private int cloudColor = STARTING_COLOR;
   private int cloudFullness = 0;
-  private Text cloudText;
-  private BezierOval c;
+  private final GameText cloudText;
+  private final BezierOval c;
   private static final Random RAND = new Random();
-  private Point2D cloudPosition;
   private double cloudSpeed;
-  private double cloudSpeedOffset = RAND.nextGaussian(.1, .3);
-  private CloudState cloudState = new OnScreen();
-  private AnimationTimer moveCloud;
+  private double cloudSpeedOffset = RAND.nextGaussian(.1, .2);
+  private CloudState cloudState = new CloudOnScreen();
   private double elapsedTime = 0;
   private double pastTime = 0;
 
   public Cloud(double windSpeed) {
-    cloudText = new Text();
+    cloudText = new GameText();
     c = new BezierOval();
+
+    cloudWidth = c.getBezierWidth();
+    cloudHeight = c.getBezierHeight();
+
+    randomMaxW = GAME_WIDTH - cloudWidth;
+    randomMaxH = GAME_HEIGHT - cloudHeight;
+    randomMinH = OFFSET + cloudHeight;
 
     cloudText.setScaleY(-1);
     cloudText.setText(String.format("%4d", cloudFullness));
@@ -47,6 +52,9 @@ public class Cloud extends GameObject implements Updatable, Observer {
     c.setOpacity(CLOUD_OPACITY);
 
     cloudSpeed = abs(windSpeed + cloudSpeedOffset);
+    if(cloudSpeed < 1){
+      cloudSpeed = windSpeed;
+    }
 
     positionCloud();
     moveCloud(this);
@@ -73,11 +81,11 @@ public class Cloud extends GameObject implements Updatable, Observer {
   }
 
   public double getCloudDiameter() {
-    return CLOUD_WIDTH * 2;
+    return cloudWidth * 2;
   }
 
   public double getCloudWidth() {
-    return CLOUD_WIDTH;
+    return cloudWidth;
   }
 
   public CloudState getState() {
@@ -89,21 +97,24 @@ public class Cloud extends GameObject implements Updatable, Observer {
   }
 
   void positionCloud() {
-    cloudPosition = new Point2D(RAND.nextInt
-        (RANDOM_MAX_W - CLOUD_WIDTH) + CLOUD_WIDTH, RAND.nextInt
-        (RANDOM_MAX_H - RANDOM_MIN_H) + RANDOM_MIN_H);
+    Point2D cloudPosition = new Point2D(RAND.nextInt
+        (randomMaxW - cloudWidth) + cloudWidth, RAND.nextInt
+        (randomMaxH - randomMinH) + randomMinH);
 
-    this.setTranslateX(cloudPosition.getX());
-    this.setTranslateY(cloudPosition.getY());
+    c.setTranslateX(cloudPosition.getX());
+    c.setTranslateY(cloudPosition.getY());
+    cloudText.positionText(cloudPosition.getX() - 10,
+        cloudPosition.getY() + 5);
     this.getChildren().addAll(c, cloudText);
   }
 
   public void repositionCloud() {
-    cloudPosition = new Point2D(-CLOUD_WIDTH, RAND.nextInt
-        (RANDOM_MAX_H - RANDOM_MIN_H) + RANDOM_MIN_H);
+    Point2D cloudPosition = new Point2D(-cloudWidth, RAND.nextInt
+        (randomMaxH - randomMinH) + randomMinH);
+
+
     this.setTranslateX(cloudPosition.getX());
     this.setTranslateY(cloudPosition.getY());
-
     cloudSpeed -= cloudSpeedOffset;
     getCloudSpeedOffset();
     cloudSpeed += cloudSpeedOffset;
@@ -112,7 +123,7 @@ public class Cloud extends GameObject implements Updatable, Observer {
   }
 
   void moveCloud(Cloud cloud) {
-    moveCloud = new AnimationTimer() {
+    AnimationTimer moveCloud = new AnimationTimer() {
       private double old = -1;
 
       @Override

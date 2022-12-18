@@ -2,7 +2,6 @@ package RainMaker.GameObjects;
 
 import RainMaker.GameApp;
 import javafx.scene.paint.Color;
-import javafx.scene.text.Font;
 
 import static java.lang.Math.abs;
 import static java.lang.Math.toRadians;
@@ -34,13 +33,17 @@ public class Helicopter extends GameObject implements Updatable {
   private double heading;
   private double speed;
   private int fuel;
+  private boolean fuelIsNotBeingChanged = false;
   private double theta;
   private final double speedIncrease = .1;
   private final double headingChange = 5;
-  private GameText helicopterText;
+  private static final int HELICOPTER_POSITION_CORRECTIONS = 90;
+  private static final int FULL_CIRCLE_DEGREES = 360;
+  private final GameText helicopterText;
   private final HelicopterBody helicopterBody;
-  private HelicopterBlade helicopterBlade;
+  private final HelicopterBlade helicopterBlade;
   private HelicopterState helicopterState = new Off();
+  private static final int FONT_SIZE = 15;
 
   public Helicopter(int initialFuel) {
     heading = INITIAL_HEADING;
@@ -53,8 +56,8 @@ public class Helicopter extends GameObject implements Updatable {
 
     helicopterText.positionText(HELICOPTER_TEXT_POSITION_X,
         HELICOPTER_TEXT_POSITION_Y);
-    helicopterText.setText(String.format("%9d", fuel));
-    helicopterText.setFont(15);
+    helicopterText.setText(String.format("F: %6d", fuel));
+    helicopterText.setFont(FONT_SIZE);
     helicopterText.setFill(Color.YELLOW);
 
     helicopterBody.positionHelicopterBody(HELICOPTER_BODY_POSITION_X,
@@ -66,8 +69,8 @@ public class Helicopter extends GameObject implements Updatable {
 
   public void update() {
     if (helicopterState.toString().equals("Ready")) {
-      helicopterText.setText(String.format("%9d", fuel));
-      updateFuel();
+      helicopterText.setText(String.format("F: %6d", fuel));
+      decrementFuel();
       move();
     } else if (helicopterState.toString().equals("Starting")) {
       if (helicopterBlade.getBladeRotationSpeed() < BLADE_MAX_ROTATION) {
@@ -87,8 +90,8 @@ public class Helicopter extends GameObject implements Updatable {
   void move() {
     this.setTranslateX(getTranslateX() + speed * Math.cos(toRadians(theta)));
     this.setTranslateY(getTranslateY() + speed * Math.sin(toRadians(theta)));
-    theta = 90 - heading;
-    helicopterBody.setRotate(360 - heading);
+    theta = HELICOPTER_POSITION_CORRECTIONS - heading;
+    helicopterBody.setRotate(FULL_CIRCLE_DEGREES - heading);
   }
 
   boolean isHelicopterMaxSpeed() {
@@ -99,16 +102,27 @@ public class Helicopter extends GameObject implements Updatable {
     return speed <= MIN_COPTER_SPEED;
   }
 
-  void updateFuel() {
-    fuel -= (abs(1 + speed));
+  public void decrementFuel() {
+    fuelIsNotBeingChanged = !fuelIsNotBeingChanged;
+    if(fuelIsNotBeingChanged){
+      fuel -= (abs(1 + speed));
+    }
+    fuelIsNotBeingChanged = !fuelIsNotBeingChanged;
+  }
+  public void incrementFuel(int refuelingAmount) {
+    fuelIsNotBeingChanged = !fuelIsNotBeingChanged;
+    if(fuelIsNotBeingChanged){
+      fuel += refuelingAmount;
+    }
+    fuelIsNotBeingChanged = !fuelIsNotBeingChanged;
   }
 
   void headLeft() {
-    heading = (heading % 360) - headingChange;
+    heading = (heading % FULL_CIRCLE_DEGREES) - headingChange;
   }
 
   void headRight() {
-    heading = (heading % 360) + headingChange;
+    heading = (heading % FULL_CIRCLE_DEGREES) + headingChange;
   }
 
   void increaseSpeed() {
@@ -135,7 +149,7 @@ public class Helicopter extends GameObject implements Updatable {
     this.helicopterState = state;
   }
 
-  void toggleIgnition(Helicopter helicopter) {
-    helicopterState.toggleIgnition(helicopter);
+  public double getSpeed() {
+    return speed;
   }
 }

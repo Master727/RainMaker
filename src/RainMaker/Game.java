@@ -23,14 +23,17 @@ public class Game extends Pane implements Updatable {
   private Ponds gamePonds;
   private Clouds gameClouds;
   private Wind gameWind;
+  private Blimps gameBlimps;
   private static final Random RAND = new Random();
-  private static final int MAX_NUMBER_OF_CLOUDS = 6;
+  private static final int MAX_NUMBER_OF_CLOUDS = 7;
   private static final int MIN_NUMBER_OF_CLOUDS = 3;
   private static int numberOfCloudsOnScreen = 0;
+  private static int numberOfBlimpsOnScreen = 0;
   private static final StringBuilder GAME_OVER_STRING_BUILDER = new StringBuilder();
   private static Alert alert;
   private static Game gameInstance;
   private double randomTime;
+  private static final int REFUELING_AMOUNT = 50;
 
   public static synchronized Game getInstance() {
     if (gameInstance == null) {
@@ -91,15 +94,23 @@ public class Game extends Pane implements Updatable {
         cloud.getState().toggleState(cloud);
         numberOfCloudsOnScreen--;
       }
-
+    }
+    for (Blimp gameBlimp : gameBlimps) {
+      gameBlimp.update();
+      if(isBlimpOffScreen(gameBlimp)){
+        gameBlimp.getState().toggleState(gameBlimp);
+        numberOfBlimpsOnScreen--;
+      }
     }
     gameHelicopter.update();
     shouldCloudBeGenerated();
     shouldWindSpeedChange();
+    shouldBlimpBeGenerated();
+
   }
 
   void shouldWindSpeedChange() {
-    randomTime = RAND.nextDouble(20 - 5) + 5;
+    randomTime = RAND.nextDouble(25 - 10) + 10;
     if(elapsedTime - pastTime > randomTime) {
       pastTime = elapsedTime;
       gameWind.notifyNewWindSpeed();
@@ -113,8 +124,8 @@ public class Game extends Pane implements Updatable {
 
     gamePonds = new Ponds();
     gameClouds = new Clouds();
-
     gameHelipad = new Helipad();
+    gameBlimps = new Blimps();
     gameHelicopter = new Helicopter(INITIAL_FUEL);
     gameWind = new Wind();
     for (int i = 0; i < 3; i++) {
@@ -124,10 +135,53 @@ public class Game extends Pane implements Updatable {
     for (int i = 0; i < initialNumberOfClouds; i++) {
       makeNewOffScreenCloud();
     }
+    for(int i = 0; i < 3; i++){
+      makeNewBlimp();
+    }
     this.getChildren().addAll(gamePonds, gameClouds, gameHelipad,
-        gameHelicopter, gameWind);
+        gameBlimps, gameHelicopter, gameWind);
   }
 
+  void makeNewBlimp() {
+    Blimp gameBlimp = new Blimp();
+    for (Blimp blimp : gameBlimps) {
+      while(isIntersect(blimp, gameBlimp)){
+        gameBlimp.repositionBlimp();
+      }
+    }
+    gameBlimps.addBlimpToList(gameBlimp);
+    numberOfBlimpsOnScreen++;
+  }
+  void shouldBlimpBeGenerated(){
+    int randomNumber = RAND.nextInt(500);
+    if(randomNumber < 2){
+      if(gameBlimps.getListSize() < 6){
+        makeNewBlimp();
+      }else if(numberOfBlimpsOnScreen < 6){
+        for (Blimp gameBlimp : gameBlimps){
+          if(gameBlimp.getState().toString().equals("OffScreen")) {
+            gameBlimp.getState().repositionBlimp(gameBlimp);
+            break;
+          }
+        }
+      }
+    }
+  }
+  void shouldCloudBeGenerated() {
+    int randomNumber = RAND.nextInt(100);
+    if (numberOfCloudsOnScreen < MAX_NUMBER_OF_CLOUDS && randomNumber < 2) {
+      if (gameClouds.getListSize() < MAX_NUMBER_OF_CLOUDS) {
+        makeNewOnScreenCloud();
+      } else {
+        for (Cloud cloud : gameClouds) {
+          if(cloud.getState().toString().equals("OffScreen")) {
+            cloud.getState().repositionCloud(cloud);
+            break;
+          }
+        }
+      }
+    }
+  }
   void makeNewOffScreenCloud() {
     Cloud gameCloud = new Cloud(gameWind.getWindSpeed());
     gameClouds.addCloudToList(gameCloud);
@@ -138,6 +192,7 @@ public class Game extends Pane implements Updatable {
   void makeNewOnScreenCloud() {
     Cloud gameCloud = new Cloud(gameWind.getWindSpeed());
     gameCloud.repositionCloud();
+    System.out.println(gameCloud.getTranslateX());
     gameClouds.addCloudToList(gameCloud);
     numberOfCloudsOnScreen++;
   }
@@ -210,7 +265,20 @@ public class Game extends Pane implements Updatable {
     instantiateGameObjects();
     this.init();
   }
-
+  void refuel(){
+    for(Blimp gameBlimp : gameBlimps) {
+      if(isIntersect(gameBlimp, gameHelicopter) &&
+          isHeliBlimpSpeedClose(gameBlimp) &&
+          gameHelicopter.getFuel() <= INITIAL_FUEL){
+        gameHelicopter.incrementFuel(REFUELING_AMOUNT);
+        gameBlimp.setBlimpFuel(REFUELING_AMOUNT);
+      }
+    }
+  }
+  boolean isHeliBlimpSpeedClose(Blimp blimp){
+    return blimp.getBlimpSpeed() < gameHelicopter.getSpeed() + .2 &&
+        blimp.getBlimpSpeed() > gameHelicopter.getSpeed() - .2;
+  }
   void addText(String s) {
     GAME_OVER_STRING_BUILDER.setLength(0);
     GAME_OVER_STRING_BUILDER.append(s);
@@ -229,24 +297,12 @@ public class Game extends Pane implements Updatable {
     return cloud.getCloudDiameter() * 2.5 > distance;
   }
 
-  void shouldCloudBeGenerated() {
-    int randomNumber = RAND.nextInt(100);
-    if (numberOfCloudsOnScreen < MAX_NUMBER_OF_CLOUDS && randomNumber < 2) {
-      if (gameClouds.getListSize() < MAX_NUMBER_OF_CLOUDS) {
-        makeNewOnScreenCloud();
-      } else {
-        for (Cloud cloud : gameClouds) {
-          if(cloud.getState().toString().equals("OffScreenRight")) {
-            cloud.getState().repositionCloud(cloud);
-            break;
-          }
-        }
-      }
-    }
-  }
-
   boolean isCloudOffScreen(Cloud cloud) {
     return cloud.getTranslateX() - cloud.getCloudWidth() >
+        GameApp.getGameWidth();
+  }
+  boolean isBlimpOffScreen(Blimp blimp){
+    return blimp.getTranslateX() - blimp.getBlimpWidth() >
         GameApp.getGameWidth();
   }
 

@@ -53,6 +53,9 @@ public class GameApp extends Application {
       case R:
         Game.getInstance().hardRestart();
         break;
+      case E:
+        Game.getInstance().refuel();
+        break;
       case SPACE:
         Game.getInstance().fireEvent();
         break;

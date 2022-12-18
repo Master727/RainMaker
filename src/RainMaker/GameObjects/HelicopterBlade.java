@@ -7,15 +7,13 @@ import javafx.scene.image.ImageView;
 import java.io.File;
 
 class HelicopterBlade extends GameObject {
-  private File helicopterBladeFile;
-  private ImageView helicopterBlade;
-  private AnimationTimer rotateBlade;
+  private final ImageView helicopterBlade;
   private static double elapsedTime = 0;
   private double rotationSpeed = 0;
   private static final double ROTATION_INCREMENT = .1;
 
   public HelicopterBlade() {
-    helicopterBladeFile = new File("Images/Helicopter Blade.png");
+    File helicopterBladeFile = new File("Images/Helicopter Blade.png");
     Image image = new Image(helicopterBladeFile.toURI().toString());
     helicopterBlade = new ImageView(image);
     helicopterBlade.setPreserveRatio(true);
@@ -30,7 +28,7 @@ class HelicopterBlade extends GameObject {
   }
 
   void rotateBlade() {
-    rotateBlade = new AnimationTimer() {
+    AnimationTimer rotateBlade = new AnimationTimer() {
       private double old = -1;
 
       @Override

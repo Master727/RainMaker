@@ -1,15 +1,11 @@
 package RainMaker.GameObjects;
 
-import javafx.animation.AnimationTimer;
-
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
 public class Clouds extends GameObject implements Iterable<Cloud> {
-  private List cloudList;
-  private AnimationTimer moveCloud;
-  private double elapsedTime = 0;
+  private final List cloudList;
 
   public Clouds() {
     cloudList = new LinkedList<>();
