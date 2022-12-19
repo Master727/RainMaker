@@ -28,7 +28,7 @@ public class Game extends Pane implements Updatable {
   private static double elapsedTime = 0;
   private static double pastTime = 0;
   private static boolean fireEventInActive = true;
-  private static final int INITIAL_FUEL = 250;
+  private static final int INITIAL_FUEL = 25000;
   private static final int REFUELING_AMOUNT = 50;
   private static final double SECONDS_CONVERSION_FACTOR = 1e9;
   private static final int MAX_WIND_REGENERATION_TIME = 25;

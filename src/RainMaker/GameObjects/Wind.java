@@ -15,7 +15,9 @@ public class Wind extends GameObject implements Observable, Updatable{
   private static final double INITIAL_WIND_SPEED = .2;
   private static final double MAX_WIND_SPEED = 1;
   private static final double MIN_WIND_SPEED = 0;
+  public static final int TEXT_OFFSET_Y = 10;
   private static double windSpeed = INITIAL_WIND_SPEED;
+  private static final int TEXT_OFFSET_X = 70;
   private final List<Observer> observers;
   private final GameText windText;
   public Wind(){
@@ -25,8 +27,8 @@ public class Wind extends GameObject implements Observable, Updatable{
     windText = new GameText();
     windText.setText(String.format("Wind Speed: %.2f", windSpeed));
     windText.setFill(Color.BLACK);
-    int textPositionY = GAME_HEIGHT - 10;
-    int textPositionX = GAME_WIDTH / 2 - 70;
+    int textPositionY = GAME_HEIGHT - TEXT_OFFSET_Y;
+    int textPositionX = GAME_WIDTH / 2 - TEXT_OFFSET_X;
     windText.positionText(textPositionX, textPositionY);
     windText.setFont(20);
 

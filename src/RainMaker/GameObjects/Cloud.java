@@ -14,6 +14,13 @@ public class Cloud extends GameObject implements Updatable, Observer{
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
   private static final int OFFSET = GAME_HEIGHT / 10;
+  public static final int TEXT_OFFSET_X = 20;
+  public static final int TEXT_OFFSET_Y = 5;
+  public static final double DEFAULT_CLOUD_SPEED = .2;
+  public static final double LESS_THEN_DEFAULT_SPEED = .1;
+  public static final double CONVERTION_FACTOR = 1e9;
+  public static final double TIME_BETWEEN_DECAY = 1.5;
+  public static final int MIN_CLOUD_FULLNESS = 30;
   private int randomMaxW;
   private int randomMaxH;
   private int randomMinH;
@@ -99,8 +106,8 @@ public class Cloud extends GameObject implements Updatable, Observer{
     Point2D cloudPosition = new Point2D(RAND.nextInt
         (randomMaxW - cloudWidth) + cloudWidth, RAND.nextInt
         (randomMaxH - randomMinH) + randomMinH);
-    cloudText.positionText(cloudText.getTranslateX() - 20,
-        cloudText.getTranslateY() + 5);
+    cloudText.positionText(cloudText.getTranslateX() - TEXT_OFFSET_X,
+        cloudText.getTranslateY() + TEXT_OFFSET_Y);
 
     this.setTranslateX(cloudPosition.getX());
     this.setTranslateY(cloudPosition.getY());
@@ -117,8 +124,8 @@ public class Cloud extends GameObject implements Updatable, Observer{
     cloudSpeed -= cloudSpeedOffset;
     getCloudSpeedOffset();
     cloudSpeed += cloudSpeedOffset;
-    if(cloudSpeed < .1){
-      cloudSpeed = .2;
+    if(cloudSpeed < LESS_THEN_DEFAULT_SPEED){
+      cloudSpeed = DEFAULT_CLOUD_SPEED;
     }
     cloudFullness = 0;
     c.setFill(Color.WHITE);
@@ -131,12 +138,12 @@ public class Cloud extends GameObject implements Updatable, Observer{
       @Override
       public void handle(long now) {
         if (old < 0) old = now;
-        double delta = (now - old) / 1e9;
+        double delta = (now - old) / CONVERTION_FACTOR;
         old = now;
         elapsedTime += delta;
         cloud.setTranslateX(cloud.getTranslateX() + cloudSpeed);
-        if (isFullnessOverX(30) && Game.getFireEvent() &&
-            elapsedTime - pastTime > 1.5) {
+        if (isFullnessOverX(MIN_CLOUD_FULLNESS) && Game.getFireEvent() &&
+            elapsedTime - pastTime > TIME_BETWEEN_DECAY) {
           pastTime = elapsedTime;
           decay();
         }

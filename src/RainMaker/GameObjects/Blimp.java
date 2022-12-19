@@ -17,6 +17,8 @@ public class Blimp extends TransientGameObjects implements Updatable{
   private static final int TEXT_OFFSET_W = 3;
   private static final int TEXT_OFFSET_H = 10;
   private static final double INITIAL_BLIMP_SPEED = .2;
+  public static final int IMAGE_HEIGHT = 80;
+  public static final double CONVERSION_FACTOR = 1e9;
   private double blimpSpeed = INITIAL_BLIMP_SPEED;
   private final File helicopterBladeFile = new File(
       "Images/Battle Blimp.png");
@@ -34,7 +36,7 @@ public class Blimp extends TransientGameObjects implements Updatable{
     blimpText = new GameText();
     blimp.setPreserveRatio(true);
     blimp.setScaleY(-1);
-    blimp.setFitHeight(80);
+    blimp.setFitHeight(IMAGE_HEIGHT);
 
     fuelCapacity = RAND.nextInt(MAX_FUEL_CAPACITY - MIN_FUEL_CAPACITY)
         + MIN_FUEL_CAPACITY;
@@ -80,7 +82,7 @@ public class Blimp extends TransientGameObjects implements Updatable{
       @Override
       public void handle(long now) {
         if (old < 0) old = now;
-        double delta = (now - old) / 1e9;
+        double delta = (now - old) / CONVERSION_FACTOR;
         old = now;
         elapsedTime += delta;
         blimp.setTranslateX(blimp.getTranslateX() + blimpSpeed);
