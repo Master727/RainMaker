@@ -19,10 +19,10 @@ class BezierOval extends Group{
   private final Ellipse ellipse;
   private final double initialTheta = 0;
   private double currentTheta = initialTheta;
-  private final int maxRadius = 50;
-  private final int minRadius = 40;
-  private final int minorMaxRadius = 25;
-  private final int minorMinRadius = 20;
+  private final int maxRadius = 60;
+  private final int minRadius = 50;
+  private final int minorMaxRadius = 35;
+  private final int minorMinRadius = 30;
   private final double maxThetaChange = PI / 3;
   private final double minThetaChange = PI / 4;
   private final int majorRadius =
@@ -80,9 +80,9 @@ class BezierOval extends Group{
     }
   }
   int getBezierWidth(){
-    return majorRadius;
+    return (int)this.getLayoutBounds().getWidth() - 5;
   }
   int getBezierHeight(){
-    return minorRadius;
+    return (int)this.getLayoutBounds().getHeight();
   }
 }

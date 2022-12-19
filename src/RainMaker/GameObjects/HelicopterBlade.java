@@ -11,6 +11,7 @@ class HelicopterBlade extends GameObject {
   private static double elapsedTime = 0;
   private double rotationSpeed = 0;
   private static final double ROTATION_INCREMENT = .1;
+  AnimationTimer rotateBlade;
 
   public HelicopterBlade() {
     File helicopterBladeFile = new File("Images/Helicopter Blade.png");
@@ -28,7 +29,7 @@ class HelicopterBlade extends GameObject {
   }
 
   void rotateBlade() {
-    AnimationTimer rotateBlade = new AnimationTimer() {
+    rotateBlade = new AnimationTimer() {
       private double old = -1;
 
       @Override
@@ -53,6 +54,9 @@ class HelicopterBlade extends GameObject {
 
   void spinDownBlade() {
     rotationSpeed -= ROTATION_INCREMENT;
+  }
+  void stopBlade(){
+    rotateBlade.stop();
   }
 
 }

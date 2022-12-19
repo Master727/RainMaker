@@ -152,4 +152,7 @@ public class Helicopter extends GameObject implements Updatable {
   public double getSpeed() {
     return speed;
   }
+  public void stopBlade(){
+    helicopterBlade.stopBlade();
+  }
 }

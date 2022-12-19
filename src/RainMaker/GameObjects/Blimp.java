@@ -28,6 +28,7 @@ public class Blimp extends TransientGameObjects implements Updatable{
   private final int randomMinH;
   private int fuelCapacity;
   private BlimpState blimpState = new BlimpOnScreen();
+  AnimationTimer moveBlimp;
   public Blimp(){
 
     blimpText = new GameText();
@@ -73,7 +74,7 @@ public class Blimp extends TransientGameObjects implements Updatable{
   }
 
   void moveBlimp(Blimp blimp) {
-    AnimationTimer moveBlimp = new AnimationTimer() {
+   moveBlimp = new AnimationTimer() {
       private double old = -1;
 
       @Override
@@ -111,5 +112,8 @@ public class Blimp extends TransientGameObjects implements Updatable{
   }
   public int getBlimpWidth(){
     return (int)blimp.getLayoutBounds().getWidth();
+  }
+  public void stopBlimp(){
+    moveBlimp.stop();
   }
 }

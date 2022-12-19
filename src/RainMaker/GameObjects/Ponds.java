@@ -23,7 +23,7 @@ public class Ponds extends GameObject implements Iterable<Pond> {
     this.getChildren().add(p);
   }
 
-  int getListSize() {
+  public int getListSize() {
     return pondList.size();
   }
 
@@ -31,9 +31,10 @@ public class Ponds extends GameObject implements Iterable<Pond> {
     int totalFullnessOfAllPonds = 0;
     for (Pond pond : pondList) {
       totalFullnessOfAllPonds =
-          (totalFullnessOfAllPonds + pond.getPondRadius()) / getListSize();
+          totalFullnessOfAllPonds + pond.getPondRadius();
     }
-    return totalFullnessOfAllPonds > x;
+    totalFullnessOfAllPonds /= getListSize();
+    return totalFullnessOfAllPonds >= x;
   }
 
   boolean isIntersect(Pond pond1, Pond pond2) {

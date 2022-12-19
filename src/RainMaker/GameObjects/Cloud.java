@@ -10,18 +10,18 @@ import java.util.Random;
 
 import static java.lang.Math.abs;
 
-public class Cloud extends TransientGameObjects implements Updatable, Observer{
-  private int cloudWidth;
-  private int cloudHeight;
+public class Cloud extends GameObject implements Updatable, Observer{
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
   private static final int OFFSET = GAME_HEIGHT / 10;
   private int randomMaxW;
   private int randomMaxH;
   private int randomMinH;
+  private int cloudWidth;
   private static final int STARTING_COLOR = 255;
   private static final double CLOUD_OPACITY = .7;
   private static final double MAX_CLOUD_SPEED = 1.2;
+  private static final double  MIN_CLOUD_SPEED = .1;
   private int cloudColor = STARTING_COLOR;
   private int cloudFullness = 0;
   private final GameText cloudText;
@@ -37,22 +37,20 @@ public class Cloud extends TransientGameObjects implements Updatable, Observer{
     cloudText = new GameText();
     c = new BezierOval();
 
-    cloudWidth = c.getBezierWidth();
-    cloudHeight = c.getBezierHeight();
+    cloudText.setText(String.format("%4d", cloudFullness));
+    cloudText.setFill(Color.BLACK);
 
+    cloudWidth = c.getBezierWidth();
+    int cloudHeight = c.getBezierHeight();
     randomMaxW = GAME_WIDTH - cloudWidth;
     randomMaxH = GAME_HEIGHT - cloudHeight;
     randomMinH = OFFSET + cloudHeight;
-
-    cloudText.setScaleY(-1);
-    cloudText.setText(String.format("%4d", cloudFullness));
-    cloudText.setFill(Color.BLACK);
 
     c.setFill(Color.WHITE);
     c.setOpacity(CLOUD_OPACITY);
 
     cloudSpeed = abs(windSpeed + cloudSpeedOffset);
-    if(cloudSpeed < 1){
+    if(cloudSpeed < .1){
       cloudSpeed = windSpeed;
     }
 
@@ -61,7 +59,7 @@ public class Cloud extends TransientGameObjects implements Updatable, Observer{
   }
 
   public void update() {
-    cloudText.setText(String.format("%4d", cloudFullness));
+    cloudText.setText(String.format(" %4d%%", cloudFullness));
   }
 
   public void colorChange() {
@@ -95,16 +93,17 @@ public class Cloud extends TransientGameObjects implements Updatable, Observer{
   void setState(CloudState state) {
     this.cloudState = state;
   }
+  AnimationTimer moveCloud;
 
   void positionCloud() {
     Point2D cloudPosition = new Point2D(RAND.nextInt
         (randomMaxW - cloudWidth) + cloudWidth, RAND.nextInt
         (randomMaxH - randomMinH) + randomMinH);
+    cloudText.positionText(cloudText.getTranslateX() - 20,
+        cloudText.getTranslateY() + 5);
 
-    c.setTranslateX(cloudPosition.getX());
-    c.setTranslateY(cloudPosition.getY());
-    cloudText.positionText(cloudPosition.getX() - 10,
-        cloudPosition.getY() + 5);
+    this.setTranslateX(cloudPosition.getX());
+    this.setTranslateY(cloudPosition.getY());
     this.getChildren().addAll(c, cloudText);
   }
 
@@ -118,12 +117,15 @@ public class Cloud extends TransientGameObjects implements Updatable, Observer{
     cloudSpeed -= cloudSpeedOffset;
     getCloudSpeedOffset();
     cloudSpeed += cloudSpeedOffset;
+    if(cloudSpeed < .1){
+      cloudSpeed = .2;
+    }
     cloudFullness = 0;
     c.setFill(Color.WHITE);
   }
 
   void moveCloud(Cloud cloud) {
-    AnimationTimer moveCloud = new AnimationTimer() {
+    moveCloud = new AnimationTimer() {
       private double old = -1;
 
       @Override
@@ -143,12 +145,15 @@ public class Cloud extends TransientGameObjects implements Updatable, Observer{
     moveCloud.start();
   }
   void getCloudSpeedOffset(){
-    if(cloudSpeed < MAX_CLOUD_SPEED){
+    if(cloudSpeed < MAX_CLOUD_SPEED && cloudSpeed > MIN_CLOUD_SPEED){
       cloudSpeedOffset = RAND.nextGaussian(.1, .3);
     }
   }
   @Override
   public void updateWindSpeed(double newWindSpeed) {
     cloudSpeed = newWindSpeed + cloudSpeedOffset;
+  }
+  public void stopClouds(){
+    moveCloud.stop();
   }
 }

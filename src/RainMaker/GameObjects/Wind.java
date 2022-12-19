@@ -12,7 +12,7 @@ public class Wind extends GameObject implements Observable, Updatable{
 
   private static final int GAME_HEIGHT = GameApp.getGameHeight();
   private static final int GAME_WIDTH = GameApp.getGameWidth();
-  private static final double INITIAL_WIND_SPEED = .1;
+  private static final double INITIAL_WIND_SPEED = .2;
   private static final double MAX_WIND_SPEED = 1;
   private static final double MIN_WIND_SPEED = 0;
   private static double windSpeed = INITIAL_WIND_SPEED;
@@ -47,14 +47,12 @@ public class Wind extends GameObject implements Observable, Updatable{
 
   @Override
   public void notifyNewWindSpeed() {
-    windSpeed = windSpeed + RAND.nextGaussian(.2, .2);
+    windSpeed = abs(windSpeed + RAND.nextGaussian(.2, .2));
     if(windSpeed >= MAX_WIND_SPEED || windSpeed <= MIN_WIND_SPEED){
-      windSpeed = windSpeed - RAND.nextGaussian(.2, .2);
       if(windSpeed >= MAX_WIND_SPEED){
-        windSpeed = MAX_WIND_SPEED;
-      }
-      if(windSpeed <= MIN_WIND_SPEED){
-        windSpeed = MIN_WIND_SPEED;
+        windSpeed = MAX_WIND_SPEED / 4;
+      }else if(MIN_WIND_SPEED > windSpeed){
+        windSpeed = INITIAL_WIND_SPEED;
       }
     }
     for (Observer observer : observers) {

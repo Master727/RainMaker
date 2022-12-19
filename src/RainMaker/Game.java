@@ -13,10 +13,26 @@ import java.io.File;
 import java.util.Random;
 
 public class Game extends Pane implements Updatable {
+  public static final int MIN_CLOUD_FULLNESS = 30;
+  public static final int MAX_POND_FULLNESS = 100;
+  public static final int INITIAL_NUM_POND = 3;
+  public static final int INITIAL_NUM_BLIMP = 3;
+  public static final int CHANCE_OF_BLIMP_SPAWN = 1000;
+  public static final int MAX_NUMBER_BLIMPS = 6;
+  public static final int ONE_LESS_THAN_MAX = 5;
+  public static final int CHANCE_OF_CLOUD_SPAWN = 100;
+  public static final int MAX_CLOUD_FULLNESS = 100;
+  public static final int POND_WIN_CONDITION = 80;
+  public static final double SPEED_MARGIN_OF_ERROR = .2;
+  public static final double CLOUD_DIAMETER_FACTOR = 2.5;
   private static double elapsedTime = 0;
   private static double pastTime = 0;
   private static boolean fireEventInActive = true;
-  private static final int INITIAL_FUEL = 25000;
+  private static final int INITIAL_FUEL = 250;
+  private static final int REFUELING_AMOUNT = 50;
+  private static final double SECONDS_CONVERSION_FACTOR = 1e9;
+  private static final int MAX_WIND_REGENERATION_TIME = 25;
+  private static final int MIN_WIND_REGENERATION_TIME = 10;
   private Helipad gameHelipad;
   private Helicopter gameHelicopter;
   private AnimationTimer game;
@@ -33,7 +49,6 @@ public class Game extends Pane implements Updatable {
   private static Alert alert;
   private static Game gameInstance;
   private double randomTime;
-  private static final int REFUELING_AMOUNT = 50;
 
   public static synchronized Game getInstance() {
     if (gameInstance == null) {
@@ -69,7 +84,7 @@ public class Game extends Pane implements Updatable {
       @Override
       public void handle(long now) {
         if (old < 0) old = now;
-        double delta = (now - old) / 1e9;
+        double delta = (now - old) / SECONDS_CONVERSION_FACTOR;
         old = now;
         elapsedTime += delta;
         update();
@@ -81,9 +96,9 @@ public class Game extends Pane implements Updatable {
 
   public void update() {
     for (Cloud cloud : gameClouds) {
-      if (cloud.isFullnessOverX(30)) {
+      if (cloud.isFullnessOverX(MIN_CLOUD_FULLNESS)) {
         for (Pond pond : gamePonds) {
-          if (pond.isPondRadiusUnderX(100) && isCloudNearPond(cloud,
+          if (pond.isPondRadiusUnderX(MAX_POND_FULLNESS) && isCloudNearPond(cloud,
               pond)) {
             pond.update();
           }
@@ -110,7 +125,8 @@ public class Game extends Pane implements Updatable {
   }
 
   void shouldWindSpeedChange() {
-    randomTime = RAND.nextDouble(25 - 10) + 10;
+    randomTime = RAND.nextDouble(MAX_WIND_REGENERATION_TIME -
+        MIN_WIND_REGENERATION_TIME) + MIN_WIND_REGENERATION_TIME;
     if(elapsedTime - pastTime > randomTime) {
       pastTime = elapsedTime;
       gameWind.notifyNewWindSpeed();
@@ -128,14 +144,14 @@ public class Game extends Pane implements Updatable {
     gameBlimps = new Blimps();
     gameHelicopter = new Helicopter(INITIAL_FUEL);
     gameWind = new Wind();
-    for (int i = 0; i < 3; i++) {
+    for (int i = 0; i < INITIAL_NUM_POND; i++) {
       Pond gamePond = new Pond();
       gamePonds.addPondToList(gamePond);
     }
     for (int i = 0; i < initialNumberOfClouds; i++) {
       makeNewOffScreenCloud();
     }
-    for(int i = 0; i < 3; i++){
+    for(int i = 0; i < Game.INITIAL_NUM_BLIMP; i++){
       makeNewBlimp();
     }
     this.getChildren().addAll(gamePonds, gameClouds, gameHelipad,
@@ -153,11 +169,11 @@ public class Game extends Pane implements Updatable {
     numberOfBlimpsOnScreen++;
   }
   void shouldBlimpBeGenerated(){
-    int randomNumber = RAND.nextInt(500);
+    int randomNumber = RAND.nextInt(CHANCE_OF_BLIMP_SPAWN);
     if(randomNumber < 2){
-      if(gameBlimps.getListSize() < 6){
+      if(gameBlimps.getListSize() < MAX_NUMBER_BLIMPS){
         makeNewBlimp();
-      }else if(numberOfBlimpsOnScreen < 6){
+      }else if(numberOfBlimpsOnScreen < ONE_LESS_THAN_MAX){
         for (Blimp gameBlimp : gameBlimps){
           if(gameBlimp.getState().toString().equals("OffScreen")) {
             gameBlimp.getState().repositionBlimp(gameBlimp);
@@ -168,7 +184,7 @@ public class Game extends Pane implements Updatable {
     }
   }
   void shouldCloudBeGenerated() {
-    int randomNumber = RAND.nextInt(100);
+    int randomNumber = RAND.nextInt(CHANCE_OF_CLOUD_SPAWN);
     if (numberOfCloudsOnScreen < MAX_NUMBER_OF_CLOUDS && randomNumber < 2) {
       if (gameClouds.getListSize() < MAX_NUMBER_OF_CLOUDS) {
         makeNewOnScreenCloud();
@@ -192,7 +208,6 @@ public class Game extends Pane implements Updatable {
   void makeNewOnScreenCloud() {
     Cloud gameCloud = new Cloud(gameWind.getWindSpeed());
     gameCloud.repositionCloud();
-    System.out.println(gameCloud.getTranslateX());
     gameClouds.addCloudToList(gameCloud);
     numberOfCloudsOnScreen++;
   }
@@ -223,7 +238,7 @@ public class Game extends Pane implements Updatable {
     fireEventInActive = !fireEventInActive;
     for (Cloud gameCloud : gameClouds) {
       if (isIntersect(gameHelicopter, gameCloud)) {
-        if (!gameCloud.isFullnessOverX(100)) {
+        if (!gameCloud.isFullnessOverX(MAX_CLOUD_FULLNESS)) {
           gameCloud.colorChange();
         }
       }
@@ -232,36 +247,54 @@ public class Game extends Pane implements Updatable {
   }
 
   void gameWinLoseRestart() {
-    if (gamePonds.isFullnessOfAllPondsOverX(80) || gameHelicopter.getFuel()
+    if (gamePonds.isFullnessOfAllPondsOverX(POND_WIN_CONDITION) || gameHelicopter.getFuel()
         < 1) {
-      game.stop();
-      if (gamePonds.isFullnessOfAllPondsOverX(80) && isIntersect(gameHelicopter,
+      if (gamePonds.isFullnessOfAllPondsOverX(POND_WIN_CONDITION) && isIntersect(gameHelicopter,
           gameHelipad) && gameHelicopter.getHelicopterStateName().equals(
           "Off")) {
+        stopAnimationLoops();
         addText("Congratulations! You won with a score of " +
             gameHelicopter.getFuel() + " Would you like to play " +
             "again?");
-      } else {
+        showAlert();
+      } else if(gameHelicopter.getFuel() < 1) {
+        stopAnimationLoops();
         addText("Your helicopter has run out of fuel. " +
             "Would you like to try again?");
+        showAlert();
       }
-      alert = new Alert(Alert.AlertType.CONFIRMATION, GAME_OVER_STRING_BUILDER.toString(),
-          ButtonType.YES, ButtonType.NO);
-      alert.setOnHidden(evt -> {
-        if (alert.getResult() == ButtonType.YES) {
-          this.getChildren().clear();
-          instantiateGameObjects();
-          this.init();
-        } else
-          Platform.exit();
-      });
-      alert.show();
+
     }
+  }
+  void stopAnimationLoops(){
+    game.stop();
+    gameHelicopter.stopBlade();
+    for (Cloud cloud : gameClouds) {
+      cloud.stopClouds();
+    }
+    for (Blimp blimp : gameBlimps) {
+      blimp.stopBlimp();
+    }
+  }
+  void showAlert(){
+    alert = new Alert(Alert.AlertType.CONFIRMATION, GAME_OVER_STRING_BUILDER.toString(),
+        ButtonType.YES, ButtonType.NO);
+    alert.setOnHidden(evt -> {
+      if (alert.getResult() == ButtonType.YES) {
+        this.getChildren().clear();
+        instantiateGameObjects();
+        this.init();
+      } else
+        Platform.exit();
+    });
+    alert.show();
   }
 
   void hardRestart() {
     game.stop();
     this.getChildren().clear();
+    numberOfCloudsOnScreen = 0;
+    numberOfBlimpsOnScreen = 0;
     instantiateGameObjects();
     this.init();
   }
@@ -276,8 +309,8 @@ public class Game extends Pane implements Updatable {
     }
   }
   boolean isHeliBlimpSpeedClose(Blimp blimp){
-    return blimp.getBlimpSpeed() < gameHelicopter.getSpeed() + .2 &&
-        blimp.getBlimpSpeed() > gameHelicopter.getSpeed() - .2;
+    return blimp.getBlimpSpeed() < gameHelicopter.getSpeed() + SPEED_MARGIN_OF_ERROR &&
+        blimp.getBlimpSpeed() > gameHelicopter.getSpeed() - SPEED_MARGIN_OF_ERROR;
   }
   void addText(String s) {
     GAME_OVER_STRING_BUILDER.setLength(0);
@@ -294,12 +327,11 @@ public class Game extends Pane implements Updatable {
         Math.hypot(Math.abs(cloud.getTranslateX() - pond.getTranslateX()),
             Math.abs(cloud.getTranslateY() - pond.getTranslateY()));
 
-    return cloud.getCloudDiameter() * 2.5 > distance;
+    return cloud.getCloudDiameter() * CLOUD_DIAMETER_FACTOR > distance;
   }
 
   boolean isCloudOffScreen(Cloud cloud) {
-    return cloud.getTranslateX() - cloud.getCloudWidth() >
-        GameApp.getGameWidth();
+    return cloud.getTranslateX() - cloud.getCloudWidth() > GameApp.getGameWidth();
   }
   boolean isBlimpOffScreen(Blimp blimp){
     return blimp.getTranslateX() - blimp.getBlimpWidth() >

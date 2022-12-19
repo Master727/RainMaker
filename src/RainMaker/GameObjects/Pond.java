@@ -46,7 +46,7 @@ public class Pond extends GameObject implements Updatable {
   }
 
   public boolean isPondRadiusUnderX(double x) {
-    return !(pondRadius >= x);
+    return (pondRadius <= x);
   }
 
   int getPondRadius() {
